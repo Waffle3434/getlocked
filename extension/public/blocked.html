@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Locked in · GetLocked</title>
+    <link rel="icon" href="icons/32.png" />
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      body { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+      main { max-width: 520px; text-align: center; }
+      img { width: 72px; height: 72px; }
+      h1 { font-size: 28px; margin: 20px 0 8px; }
+      .domain { color: var(--accent); }
+      .time { font-size: 56px; font-weight: 600; margin: 24px 0 0; letter-spacing: -1px; }
+      .quote { margin: 28px 0; font-size: 15px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img src="icons/128.png" alt="" />
+      <h1><span class="domain" id="domain">This site</span> is blocked</h1>
+      <p class="muted" id="label">You're locked in right now.</p>
+      <div class="time tabular" id="time" hidden></div>
+      <div class="muted" id="time-caption" hidden>until this session's blocks lift</div>
+      <p class="quote" id="quote"></p>
+      <button class="primary" id="close">Close this tab</button>
+    </main>
+    <script src="blocked.js"></script>
+  </body>
+</html>

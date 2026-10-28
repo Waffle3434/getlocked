@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "GetLocked",
+  "mainBinaryName": "GetLocked",
+  "version": "0.1.0",
+  "identifier": "dev.getlocked.app",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "GetLocked",
+        "width": 1080,
+        "height": 760,
+        "minWidth": 860,
+        "minHeight": 620,
+        "visible": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "msi"],
+    "category": "Productivity",
+    "shortDescription": "Lock in: block distracting apps and sites for a focus session.",
+    "longDescription": "GetLocked blocks the apps and websites you choose (or allows only the ones you need) for a timed or open-ended focus session. Free and open source under the GPL-3.0.",
+    "copyright": "GetLocked contributors, GPL-3.0",
+    "license": "GPL-3.0-only",
+    "licenseFile": "../../../LICENSE",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": { "installMode": "currentUser" }
+    }
+  }
+}

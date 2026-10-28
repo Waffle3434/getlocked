@@ -1,0 +1,21 @@
+node_modules/
+dist/
+target/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+extension/dist/
+extension/*.zip
+apps/desktop/src-tauri/gen/
+
+# Never commit secrets or local data
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+*.p12
+*.sqlite
+session.json

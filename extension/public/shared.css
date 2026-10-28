@@ -1,0 +1,32 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0a14;
+  --card: #12101f;
+  --line: #1f1b35;
+  --text: #ece9fb;
+  --muted: #8a84ad;
+  --accent: #a78bfa;
+  --accent-strong: #7c3aed;
+  --warn: #fcd34d;
+  --ok: #6ee7b7;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+}
+.muted { color: var(--muted); }
+.tabular { font-variant-numeric: tabular-nums; }
+button {
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: #1f1b35;
+  color: var(--text);
+  border-radius: 8px;
+  padding: 8px 14px;
+}
+button:hover { background: #2c2748; }
+button.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: white; }

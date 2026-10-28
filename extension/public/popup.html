@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      body { width: 300px; padding: 16px; }
+      header { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; margin-bottom: 12px; }
+      header img { width: 24px; height: 24px; }
+      .row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+      .dot.ok { background: var(--ok); }
+      .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-top: 12px; }
+      .warn { color: var(--warn); font-size: 12px; }
+      .big { font-size: 22px; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <header><img src="icons/32.png" alt="" />GetLocked</header>
+    <div class="row"><span class="dot" id="dot"></span><span id="conn">Checking…</span></div>
+    <div class="card" id="session"></div>
+    <div class="card warn" id="perm" hidden>
+      GetLocked needs access to all sites to block them.
+      <div style="margin-top: 8px"><button class="primary" id="grant">Grant access</button></div>
+    </div>
+    <p class="warn" id="incognito" hidden>
+      Tip: allow this extension in private/incognito windows, or private windows won't be blocked.
+    </p>
+    <script src="popup.js"></script>
+  </body>
+</html>

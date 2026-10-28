@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build installer and create draft release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: GetLocked ${{ github.ref_name }}
+          releaseBody: |
+            Download the `-setup.exe` installer below. For website blocking, also grab the extension zip for your browser and follow docs/extension.md.
+          releaseDraft: true
+          prerelease: false
+
+      - name: Build and zip the extension
+        shell: pwsh
+        run: |
+          npm run ext:build
+          Compress-Archive -Path extension/dist/chromium/* -DestinationPath getlocked-extension-chromium.zip
+          Compress-Archive -Path extension/dist/firefox/* -DestinationPath getlocked-extension-firefox.zip
+
+      - name: Attach extension zips
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.ref_name }}" getlocked-extension-chromium.zip getlocked-extension-firefox.zip --clobber
