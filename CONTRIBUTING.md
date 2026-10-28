@@ -14,7 +14,8 @@ Prerequisites: Rust stable, Node.js 22+, and the [Tauri prerequisites](https://t
 
 ```bash
 npm install
-npm run dev            # desktop app with hot reload
+npm run ext:build      # once, before any cargo command: the app bundles the extension
+npm run dev            # desktop app with hot reload (also builds the extension)
 npm run ext:build      # extension → extension/dist/{chromium,firefox}
 npm run watch -w extension   # rebuild the extension on change
 ```

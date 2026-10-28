@@ -28,6 +28,11 @@ jobs:
 
       - run: npm ci
 
+      # The desktop app bundles the built extension, and its Rust build
+      # checks that the folder exists, so this has to come first.
+      - name: Build extension
+        run: npm run ext:build
+
       - name: Rust format
         run: cargo fmt --all --check
 
@@ -45,6 +50,3 @@ jobs:
 
       - name: Build UI
         run: npm run build -w apps/desktop
-
-      - name: Build extension
-        run: npm run ext:build

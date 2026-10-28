@@ -30,9 +30,10 @@ It also never sends your data anywhere. There's no account, no telemetry, and no
 
 ## Install
 
-1. Download the latest installer from the [Releases](../../releases) page and run it. No admin rights are needed.
-2. Install the browser extension if you want website blocking: [Browser extension setup](docs/extension.md).
-3. Open GetLocked, pick what to block, and press **Lock in**.
+1. Download `GetLocked_x.y.z_x64-setup.exe` from the latest [release](../../releases/latest) and run it. No admin rights are needed.
+   > Windows may say **"Windows protected your PC"** because the installer isn't code-signed yet. Click **More info → Run anyway**. The source and the build are public, so you can check exactly what you're running.
+2. For website blocking, open GetLocked → **Settings → Browser extension → Set up extension** and follow the steps ([details](docs/extension.md)).
+3. Pick what to block and press **Lock in**.
 
 More detail: [Getting started](docs/getting-started.md) · [FAQ](docs/faq.md)
 

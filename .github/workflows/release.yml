@@ -25,6 +25,14 @@ jobs:
 
       - run: npm ci
 
+      # The installer bundles the extension, so build it before the app.
+      - name: Build and zip the extension
+        shell: pwsh
+        run: |
+          npm run ext:build
+          Compress-Archive -Path extension/dist/chromium/* -DestinationPath getlocked-extension-chromium.zip
+          Compress-Archive -Path extension/dist/firefox/* -DestinationPath getlocked-extension-firefox.zip
+
       - name: Build installer and create draft release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -34,16 +42,15 @@ jobs:
           tagName: ${{ github.ref_name }}
           releaseName: GetLocked ${{ github.ref_name }}
           releaseBody: |
-            Download the `-setup.exe` installer below. For website blocking, also grab the extension zip for your browser and follow docs/extension.md.
+            ## Install
+
+            1. Download the **`_x64-setup.exe`** file below and run it. No admin rights needed.
+            2. If Windows says *"Windows protected your PC"*, click **More info → Run anyway**. The installer isn't code-signed yet; the source and this build are public.
+            3. For website blocking, open GetLocked → **Settings → Browser extension → Set up extension**.
+
+            The extension zips below are only needed if you want to install the extension by hand (see `docs/extension.md`).
           releaseDraft: true
           prerelease: false
-
-      - name: Build and zip the extension
-        shell: pwsh
-        run: |
-          npm run ext:build
-          Compress-Archive -Path extension/dist/chromium/* -DestinationPath getlocked-extension-chromium.zip
-          Compress-Archive -Path extension/dist/firefox/* -DestinationPath getlocked-extension-firefox.zip
 
       - name: Attach extension zips
         if: startsWith(github.ref, 'refs/tags/')
