@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
+  BrowserInfo,
+  ExtensionTarget,
   Config,
   InstalledApp,
   Preset,
@@ -33,6 +35,10 @@ export const api = {
   getStats: (days: number) => invoke<StatsSummary>("get_stats", { days }),
   normalizeDomain: (input: string) => invoke<string | null>("normalize_domain", { input }),
   quit: () => invoke<void>("quit_app"),
+  listBrowsers: () => invoke<BrowserInfo[]>("list_browsers"),
+  prepareExtension: (target: ExtensionTarget) => invoke<string>("prepare_extension", { target }),
+  revealExtension: (target: ExtensionTarget) => invoke<void>("reveal_extension", { target }),
+  openExtensionsPage: (browser: string) => invoke<void>("open_extensions_page", { browser }),
 };
 
 export function onState(cb: (s: Snapshot) => void): Promise<UnlistenFn> {

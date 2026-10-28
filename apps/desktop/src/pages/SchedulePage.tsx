@@ -22,9 +22,9 @@ export function SchedulePage({ config, onConfig }: { config: Config; onConfig: (
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-semibold">Schedule</h1>
+          <h1 className="text-3xl">Schedule</h1>
           <p className="mt-1 text-sm text-ink-400">
             Start a preset automatically at set times. GetLocked needs to be running (it lives in the tray), so turn on
             Start with Windows in Settings.

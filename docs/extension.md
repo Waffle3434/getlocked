@@ -1,5 +1,7 @@
 # Browser extension setup
 
+**Easiest way:** open GetLocked → **Settings → Browser extension → Set up extension**. It finds your browsers, opens the right page, and gives you the folder to load. The steps below are the same thing done by hand.
+
 GetLocked blocks websites through a small extension that connects to the GetLocked app on your own PC (`ws://127.0.0.1:47613`). The extension never talks to the internet. It only receives "block these sites until X" from the app and redirects those pages to a "You're locked in" screen.
 
 Each release includes two zips:

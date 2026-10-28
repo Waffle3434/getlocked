@@ -13,6 +13,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_autostart::ManagerExt as _;
 
 use crate::apps_index::{self, InstalledApp};
+use crate::extension_setup::{self, BrowserInfo};
 use crate::runtime::{AppState, Snapshot};
 
 type S<'a> = State<'a, Arc<AppState>>;
@@ -181,4 +182,25 @@ pub fn try_quit(app: &AppHandle, state: &AppState) -> Result<(), String> {
 #[tauri::command]
 pub fn quit_app(app: AppHandle, state: S) -> Result<(), String> {
     try_quit(&app, &state)
+}
+
+#[tauri::command]
+pub fn list_browsers() -> Vec<BrowserInfo> {
+    extension_setup::browsers()
+}
+
+/// Copies the extension to a stable folder and returns its path.
+#[tauri::command]
+pub fn prepare_extension(app: AppHandle, target: String) -> Result<String, String> {
+    extension_setup::prepare(&app, &target).map(|p| p.display().to_string())
+}
+
+#[tauri::command]
+pub fn reveal_extension(app: AppHandle, target: String) -> Result<(), String> {
+    extension_setup::reveal(&app, &target)
+}
+
+#[tauri::command]
+pub fn open_extensions_page(browser: String) -> Result<(), String> {
+    extension_setup::open_extensions_page(&browser)
 }

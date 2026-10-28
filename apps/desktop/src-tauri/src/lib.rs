@@ -5,6 +5,7 @@ mod apps_index;
 mod bridge;
 mod commands;
 mod enforcer;
+mod extension_setup;
 pub mod guard;
 mod runtime;
 
@@ -106,6 +107,10 @@ pub fn run() {
             commands::get_stats,
             commands::normalize_domain,
             commands::quit_app,
+            commands::list_browsers,
+            commands::prepare_extension,
+            commands::reveal_extension,
+            commands::open_extensions_page,
         ])
         .run(tauri::generate_context!())
         .expect("error while running GetLocked");

@@ -148,3 +148,13 @@ export interface StatsSummary {
   topBlocked: BlockedTarget[];
   recent: SessionRow[];
 }
+
+export type ExtensionTarget = "chromium" | "firefox";
+
+export interface BrowserInfo {
+  id: string;
+  name: string;
+  target: ExtensionTarget;
+  extensionsUrl: string;
+  installed: boolean;
+}

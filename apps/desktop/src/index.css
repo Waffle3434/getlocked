@@ -1,21 +1,30 @@
 @import "tailwindcss";
 
+/* Warm charcoal neutrals with ivory text and a terracotta accent. */
 @theme {
-  --color-ink-950: #0b0a14;
-  --color-ink-900: #12101f;
-  --color-ink-850: #18152a;
-  --color-ink-800: #1f1b35;
-  --color-ink-700: #2c2748;
-  --color-ink-600: #3d3762;
-  --color-ink-400: #8a84ad;
-  --color-ink-300: #b2adcf;
-  --color-ink-100: #ece9fb;
-  --color-accent-300: #c4b5fd;
-  --color-accent-400: #a78bfa;
-  --color-accent-500: #8b5cf6;
-  --color-accent-600: #7c3aed;
+  --color-ink-1000: #1f1e1d;
+  --color-ink-950: #262624;
+  --color-ink-900: #2f2e2b;
+  --color-ink-850: #34332f;
+  --color-ink-800: #3c3b37;
+  --color-ink-700: #4a4944;
+  --color-ink-600: #5e5c56;
+  --color-ink-400: #a3a097;
+  --color-ink-300: #c8c5bb;
+  --color-ink-100: #f5f4ee;
+  --color-accent-300: #eba98d;
+  --color-accent-400: #e08b6c;
+  --color-accent-500: #d97757;
+  --color-accent-600: #c6613f;
   --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --font-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
   --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+}
+
+h1 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 html,

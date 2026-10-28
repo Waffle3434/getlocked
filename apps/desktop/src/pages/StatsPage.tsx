@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Flame, Trophy } from "lucide-react";
+import { CheckCircle2, CircleStop, Flame, Trophy } from "lucide-react";
 import { api, errorText } from "../api";
 import { Card, ErrorText, Segmented } from "../components/ui";
 import { duration } from "../format";
@@ -42,7 +42,7 @@ export function StatsPage() {
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Your stats</h1>
+          <h1 className="text-3xl">Your stats</h1>
           <p className="mt-1 text-sm text-ink-400">Stored only on this PC.</p>
         </div>
         <Segmented
@@ -55,11 +55,12 @@ export function StatsPage() {
         />
       </header>
 
-      <div className="grid gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Tile label={`Focus, last ${days} days`} value={duration(rangeFocus)} />
         <Tile label="Current streak" value={`${stats.currentStreak} day${stats.currentStreak === 1 ? "" : "s"}`} icon={<Flame size={14} className="text-orange-400" />} />
         <Tile label="Best streak" value={`${stats.bestStreak} day${stats.bestStreak === 1 ? "" : "s"}`} icon={<Trophy size={14} className="text-amber-300" />} />
-        <Tile label="Completed / ended early" value={`${stats.completed} / ${stats.endedEarly}`} />
+        <Tile label="Completed" value={String(stats.completed)} icon={<CheckCircle2 size={14} className="text-emerald-400" />} />
+        <Tile label="Ended early" value={String(stats.endedEarly)} icon={<CircleStop size={14} className="text-ink-400" />} />
       </div>
 
       <Card>

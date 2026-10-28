@@ -30,9 +30,9 @@ export function PresetsPage({ config, onConfig, running }: { config: Config; onC
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <header className="flex items-end justify-between">
+      <header className="flex items-end justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-semibold">Presets</h1>
+          <h1 className="text-3xl">Presets</h1>
           <p className="mt-1 text-sm text-ink-400">Saved setups you can start in one click or put on a schedule.</p>
         </div>
         <Button variant="primary" onClick={() => setEditing({ id: newId(), name: "", config: blankConfig() })}>

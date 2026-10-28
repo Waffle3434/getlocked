@@ -1,12 +1,12 @@
 :root {
   color-scheme: dark;
-  --bg: #0b0a14;
-  --card: #12101f;
-  --line: #1f1b35;
-  --text: #ece9fb;
-  --muted: #8a84ad;
-  --accent: #a78bfa;
-  --accent-strong: #7c3aed;
+  --bg: #262624;
+  --card: #2f2e2b;
+  --line: #3c3b37;
+  --text: #f5f4ee;
+  --muted: #a3a097;
+  --accent: #e08b6c;
+  --accent-strong: #c6613f;
   --warn: #fcd34d;
   --ok: #6ee7b7;
 }
@@ -23,10 +23,11 @@ button {
   font: inherit;
   cursor: pointer;
   border: 1px solid var(--line);
-  background: #1f1b35;
+  background: #34332f;
   color: var(--text);
   border-radius: 8px;
   padding: 8px 14px;
 }
-button:hover { background: #2c2748; }
+button:hover { background: #4a4944; }
+h1 { font-family: Georgia, "Iowan Old Style", "Times New Roman", serif; font-weight: 400; }
 button.primary { background: var(--accent-strong); border-color: var(--accent-strong); color: white; }

@@ -196,7 +196,7 @@ export function SessionPage({ session, snapshot }: { session: SessionView; snaps
           {onBreak ? <Coffee size={14} className="text-emerald-400" /> : <Lock size={14} className="text-accent-400" />}
           {onBreak ? "On a break: blocks are lifted" : "Locked in"} · {c.strictness[0].toUpperCase() + c.strictness.slice(1)}
         </div>
-        <h1 className="text-xl font-semibold">{session.label ?? (c.kind.type === "timed" ? "Focus session" : "Stopwatch session")}</h1>
+        <h1 className="text-2xl">{session.label ?? (c.kind.type === "timed" ? "Focus session" : "Stopwatch session")}</h1>
       </div>
 
       <Ring progress={progress} dim={onBreak}>

@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { CheckCircle2, Puzzle, XCircle } from "lucide-react";
 import { api, errorText } from "../api";
+import { ExtensionSetup } from "../components/ExtensionSetup";
 import { Button, Card, ErrorText, NumberField, SectionTitle, Toggle } from "../components/ui";
 import type { Config, Settings, Snapshot } from "../types";
 
-const DOCS_URL = "docs/extension.md";
-
 export function SettingsPage({ snapshot, onConfig }: { snapshot: Snapshot; onConfig: (c: Config) => void }) {
   const [error, setError] = useState("");
+  const [settingUp, setSettingUp] = useState(false);
   const settings = snapshot.config.settings;
 
   const save = async (patch: Partial<Settings>) => {
@@ -22,7 +22,7 @@ export function SettingsPage({ snapshot, onConfig }: { snapshot: Snapshot; onCon
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       <header>
-        <h1 className="text-2xl font-semibold">Settings</h1>
+        <h1 className="text-3xl">Settings</h1>
       </header>
       <ErrorText>{error}</ErrorText>
 
@@ -37,7 +37,7 @@ export function SettingsPage({ snapshot, onConfig }: { snapshot: Snapshot; onCon
           checked={settings.notifications}
           onChange={(notifications) => save({ notifications })}
           label="Notifications"
-          hint='Show a toast when something is blocked, a break starts, or time is up.'
+          hint="Show a toast when something is blocked, a break starts, or time is up."
         />
         <div className="flex items-center justify-between gap-4">
           <span>
@@ -57,14 +57,19 @@ export function SettingsPage({ snapshot, onConfig }: { snapshot: Snapshot; onCon
       </Card>
 
       <Card>
-        <SectionTitle hint="Website blocking works through a small extension that talks to this app on your PC only.">
-          <span className="flex items-center gap-2">
-            <Puzzle size={16} /> Browser extension
-          </span>
-        </SectionTitle>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <SectionTitle hint="Website blocking works through a small extension that talks to this app on your PC only.">
+            <span className="flex items-center gap-2">
+              <Puzzle size={16} /> Browser extension
+            </span>
+          </SectionTitle>
+          <Button variant={snapshot.extensions.length ? "secondary" : "primary"} onClick={() => setSettingUp(true)}>
+            {snapshot.extensions.length ? "Add to another browser" : "Set up extension"}
+          </Button>
+        </div>
         {snapshot.extensions.length === 0 ? (
           <p className="flex items-center gap-2 text-sm text-amber-300">
-            <XCircle size={16} /> Not connected in any browser.
+            <XCircle size={16} /> Not connected in any browser yet.
           </p>
         ) : (
           <ul className="flex flex-col gap-1.5">
@@ -80,10 +85,6 @@ export function SettingsPage({ snapshot, onConfig }: { snapshot: Snapshot; onCon
             ))}
           </ul>
         )}
-        <p className="mt-3 text-xs text-ink-400">
-          Install it from the <code>extension</code> folder of the GetLocked release (see <code>{DOCS_URL}</code> in the
-          repository). Listening on port {snapshot.bridgePort ?? "–"}.
-        </p>
       </Card>
 
       <Card className="flex flex-col gap-2 text-sm">
@@ -91,9 +92,6 @@ export function SettingsPage({ snapshot, onConfig }: { snapshot: Snapshot; onCon
         <p>
           GetLocked {snapshot.version}. Free and open source under the GPL-3.0. It never modifies other apps or system
           files, and nothing you do here leaves this PC.
-        </p>
-        <p className="text-xs text-ink-400">
-          Your data: <code className="select-text">{snapshot.dataDir}</code>
         </p>
         <div className="mt-2">
           <Button
@@ -105,6 +103,8 @@ export function SettingsPage({ snapshot, onConfig }: { snapshot: Snapshot; onCon
           </Button>
         </div>
       </Card>
+
+      {settingUp && <ExtensionSetup extensions={snapshot.extensions} onClose={() => setSettingUp(false)} />}
     </div>
   );
 }

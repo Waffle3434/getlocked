@@ -50,10 +50,10 @@ export default function App() {
 
   return (
     <div className="flex h-full">
-      <aside className="flex w-52 shrink-0 flex-col border-r border-ink-800 bg-ink-900/60 p-3">
+      <aside className="flex w-52 shrink-0 flex-col border-r border-ink-800 bg-ink-1000 p-3">
         <div className="mb-6 flex items-center gap-2 px-2 pt-2">
           <img src="/favicon.svg" alt="" className="h-7 w-7" />
-          <span className="text-lg font-semibold tracking-tight">GetLocked</span>
+          <span className="font-serif text-xl tracking-tight">GetLocked</span>
         </div>
         <nav className="flex flex-col gap-1">
           {nav.map((n) => (
@@ -86,7 +86,8 @@ export default function App() {
         )}
       </aside>
 
-      <main className="flex-1 overflow-y-auto px-8 py-8">
+      {/* No bottom padding on Start so its action bar can sit flush with the window edge. */}
+      <main className={`flex-1 overflow-y-auto px-8 pt-8 ${page === "home" && !session ? "" : "pb-8"}`}>
         {page === "home" &&
           (session ? (
             <SessionPage session={session} snapshot={snapshot} />

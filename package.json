@@ -8,8 +8,8 @@
     "extension"
   ],
   "scripts": {
-    "dev": "npm run tauri dev -w apps/desktop",
-    "build": "npm run tauri build -w apps/desktop",
+    "dev": "npm run ext:build && npm run tauri dev -w apps/desktop",
+    "build": "npm run ext:build && npm run tauri build -w apps/desktop",
     "ext:build": "npm run build -w extension",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present"
