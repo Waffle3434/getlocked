@@ -7,6 +7,7 @@
 pub mod end_policy;
 pub mod matcher;
 pub mod model;
+pub mod pairing;
 pub mod persist;
 pub mod protocol;
 pub mod scheduler;

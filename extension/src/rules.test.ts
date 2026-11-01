@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { SiteRulesMsg } from "@getlocked/protocol";
-import { buildDnrRules, cachedRulesExpired, clock, hostOf, isBlocked, STALE_WITHOUT_END_MS } from "./rules";
+import {
+  buildDnrRules,
+  cachedRulesExpired,
+  clock,
+  hostOf,
+  isBlocked,
+  isRealBlock,
+  parseRules,
+  STALE_WITHOUT_END_MS,
+} from "./rules";
 
 const rules = (mode: SiteRulesMsg["mode"], domains: string[], active = true): SiteRulesMsg => ({
   active,
@@ -40,6 +49,41 @@ describe("isBlocked", () => {
     expect(isBlocked("https://youtube.com", rules("block", ["youtube.com"], false))).toBe(false);
     expect(isBlocked("https://youtube.com", rules("off", ["youtube.com"]))).toBe(false);
     expect(isBlocked("https://youtube.com", null)).toBe(false);
+  });
+});
+
+describe("parseRules", () => {
+  it("accepts what the app sends", () => {
+    const r = { ...rules("block", ["youtube.com", "m.x.com"]), endsAt: 5, label: "Study" };
+    expect(parseRules({ type: "rules", ...r })).toEqual(r);
+  });
+
+  it("rejects malformed fields", () => {
+    const ok = rules("block", ["a.com"]);
+    expect(parseRules({ ...ok, mode: "nuke" })).toBeNull();
+    expect(parseRules({ ...ok, domains: ["a.com/path"] })).toBeNull();
+    expect(parseRules({ ...ok, domains: "a.com" })).toBeNull();
+    expect(parseRules({ ...ok, endsAt: "soon" })).toBeNull();
+    expect(parseRules({ ...ok, endsAt: Infinity })).toBeNull();
+    expect(parseRules({ ...ok, active: 1 })).toBeNull();
+    expect(parseRules(null)).toBeNull();
+  });
+});
+
+describe("isRealBlock", () => {
+  it("counts only domains the rules block", () => {
+    const r = rules("block", ["youtube.com"]);
+    expect(isRealBlock("youtube.com", r)).toBe(true);
+    expect(isRealBlock("music.youtube.com", r)).toBe(true);
+    expect(isRealBlock("github.com", r)).toBe(false);
+    expect(isRealBlock("youtube.com", rules("block", ["youtube.com"], false))).toBe(false);
+  });
+
+  it("rejects anything that isn't a bare host", () => {
+    const r = rules("allow", []);
+    expect(isRealBlock("evil.com/whatever", r)).toBe(false);
+    expect(isRealBlock("Forged Text", r)).toBe(false);
+    expect(isRealBlock("", r)).toBe(false);
   });
 });
 

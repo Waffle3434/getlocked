@@ -2,10 +2,16 @@
 //! a copy of the extension in a stable folder, and opens the browser's
 //! extensions page. Nothing is installed automatically; the user still clicks
 //! "Load unpacked" themselves.
+//!
+//! The copy carries this install's pairing code in `pairing.json`, so an
+//! extension loaded from it pairs on its own. One installed any other way
+//! asks for the code in its popup.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use getlocked_core::pairing::PairingFile;
+use getlocked_core::persist::save_json;
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
@@ -162,21 +168,41 @@ fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+const TARGETS: [&str; 2] = ["chromium", "firefox"];
+
+fn prepared_dir(app: &AppHandle, target: &str) -> Result<PathBuf, String> {
+    Ok(app.path().app_data_dir().map_err(|e| e.to_string())?.join("extension").join(target))
+}
+
 /// The folder the browser should load the extension from. It's a copy in
 /// GetLocked's data folder, so the path is short, stays put across app
 /// updates, and is refreshed every time setup runs.
-pub fn prepare(app: &AppHandle, target: &str) -> Result<PathBuf, String> {
-    if target != "chromium" && target != "firefox" {
+pub fn prepare(app: &AppHandle, target: &str, code: &str) -> Result<PathBuf, String> {
+    if !TARGETS.contains(&target) {
         return Err("unknown extension target".into());
     }
     let src = source_dir(app, target)?;
-    let dest = app.path().app_data_dir().map_err(|e| e.to_string())?.join("extension").join(target);
+    let dest = prepared_dir(app, target)?;
     copy_dir(&src, &dest).map_err(|e| format!("couldn't copy the extension: {e}"))?;
+    save_json(&dest.join("pairing.json"), &PairingFile { code: code.into() })
+        .map_err(|e| format!("couldn't save the pairing code: {e}"))?;
     Ok(dest)
 }
 
+/// After the pairing code changes, update the copies already prepared so
+/// extensions loaded from them pick up the new code.
+pub fn update_pairing(app: &AppHandle, code: &str) {
+    for target in TARGETS {
+        if let Ok(dir) = prepared_dir(app, target) {
+            if dir.join("manifest.json").is_file() {
+                let _ = save_json(&dir.join("pairing.json"), &PairingFile { code: code.into() });
+            }
+        }
+    }
+}
+
 /// Show the prepared extension folder in Explorer.
-pub fn reveal(app: &AppHandle, target: &str) -> Result<(), String> {
-    let dir = prepare(app, target)?;
+pub fn reveal(app: &AppHandle, target: &str, code: &str) -> Result<(), String> {
+    let dir = prepare(app, target, code)?;
     Command::new("explorer.exe").arg(dir).spawn().map(|_| ()).map_err(|e| e.to_string())
 }

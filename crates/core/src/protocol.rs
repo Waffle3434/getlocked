@@ -7,15 +7,22 @@ use serde::{Deserialize, Serialize};
 
 use crate::model::ListMode;
 
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 /// The app listens on the first free port in this range on 127.0.0.1.
 pub const PORTS: std::ops::RangeInclusive<u16> = 47613..=47617;
 
 /// App → extension.
+///
+/// A connection starts with a pairing handshake (see `crate::pairing`): the
+/// app sends `Challenge`, the extension answers with `Auth`, and the app
+/// replies `Welcome` with its own proof, or `PairingFailed` and hangs up.
+/// Nothing else is sent or accepted until then.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum ToExtension {
-    Welcome { protocol: u32 },
+    Challenge { protocol: u32, nonce: String },
+    Welcome { protocol: u32, proof: String },
+    PairingFailed,
     Rules(SiteRulesMsg),
     Ping,
 }
@@ -38,6 +45,10 @@ pub struct SiteRulesMsg {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum FromExtension {
+    Auth {
+        nonce: String,
+        proof: String,
+    },
     Hello {
         protocol: u32,
         /// `chrome`, `edge`, `brave`, `opera`, `vivaldi`, `firefox` or
@@ -70,10 +81,17 @@ mod tests {
             r#"{"type":"rules","active":true,"mode":"block","domains":["youtube.com"],"endsAt":5,"label":null}"#
         );
         let hello: FromExtension = serde_json::from_str(
-            r#"{"type":"hello","protocol":1,"browser":"edge","version":"0.1.0","incognitoAllowed":false}"#,
+            r#"{"type":"hello","protocol":2,"browser":"edge","version":"0.1.0","incognitoAllowed":false}"#,
         )
         .unwrap();
         assert!(matches!(hello, FromExtension::Hello { incognito_allowed: false, .. }));
+        let auth: FromExtension = serde_json::from_str(r#"{"type":"auth","nonce":"ab","proof":"cd"}"#).unwrap();
+        assert_eq!(auth, FromExtension::Auth { nonce: "ab".into(), proof: "cd".into() });
+        assert_eq!(serde_json::to_string(&ToExtension::PairingFailed).unwrap(), r#"{"type":"pairingFailed"}"#);
+        assert_eq!(
+            serde_json::to_string(&ToExtension::Challenge { protocol: 2, nonce: "ab".into() }).unwrap(),
+            r#"{"type":"challenge","protocol":2,"nonce":"ab"}"#
+        );
         let blocked: FromExtension = serde_json::from_str(r#"{"type":"blocked","domain":"x.com"}"#).unwrap();
         assert_eq!(blocked, FromExtension::Blocked { domain: "x.com".into() });
     }

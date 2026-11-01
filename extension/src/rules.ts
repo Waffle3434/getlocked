@@ -32,6 +32,39 @@ export function isBlocked(url: string, rules: SiteRulesMsg | null): boolean {
   return !listed && !ALWAYS_ALLOWED.some((d) => matchesDomain(host, d));
 }
 
+const DOMAIN = /^(?=.{1,253}$)[a-z0-9-]+(\.[a-z0-9-]+)*$/;
+
+/** Rules from the wire, checked field by field before they're enforced or stored. */
+export function parseRules(msg: unknown): SiteRulesMsg | null {
+  if (typeof msg !== "object" || msg === null) return null;
+  const m = msg as Record<string, unknown>;
+  const ok =
+    typeof m.active === "boolean" &&
+    (m.mode === "off" || m.mode === "block" || m.mode === "allow") &&
+    Array.isArray(m.domains) &&
+    m.domains.length <= 10_000 &&
+    m.domains.every((d) => typeof d === "string" && DOMAIN.test(d)) &&
+    (m.endsAt === null || (typeof m.endsAt === "number" && Number.isFinite(m.endsAt))) &&
+    (m.label === null || (typeof m.label === "string" && m.label.length <= 200));
+  if (!ok) return null;
+  return {
+    active: m.active as boolean,
+    mode: m.mode as SiteRulesMsg["mode"],
+    domains: m.domains as string[],
+    endsAt: m.endsAt as number | null,
+    label: m.label as string | null,
+  };
+}
+
+/**
+ * Should the blocked page's report of `domain` count as a block? Only if
+ * the current rules really block it, so a page that opens blocked.html with
+ * a made-up `?d=` can't add entries to the stats.
+ */
+export function isRealBlock(domain: string, rules: SiteRulesMsg | null): boolean {
+  return hostOf(`https://${domain}/`) === domain && isBlocked(`https://${domain}/`, rules);
+}
+
 /** Rule ids GetLocked owns; everything is replaced on each update. */
 export const RULE_IDS = { redirect: 1, allow: 2 } as const;
 

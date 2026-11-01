@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CheckCircle2, Puzzle, XCircle } from "lucide-react";
 import { api, errorText } from "../api";
-import { ExtensionSetup } from "../components/ExtensionSetup";
+import { ExtensionSetup, PairingCode } from "../components/ExtensionSetup";
 import { Button, Card, ErrorText, NumberField, SectionTitle, Toggle } from "../components/ui";
 import type { Config, Settings, Snapshot } from "../types";
 
@@ -85,6 +85,23 @@ export function SettingsPage({ snapshot, onConfig }: { snapshot: Snapshot; onCon
             ))}
           </ul>
         )}
+        <div className="mt-4 flex flex-col gap-2 border-t border-ink-800 pt-4">
+          <div className="text-sm">Pairing code</div>
+          <p className="text-xs text-ink-400">
+            The extension needs this code to connect, so other programs on this PC can't pose as GetLocked or as the
+            extension. Setup fills it in for you; paste it into the extension's popup if it asks. A new code disconnects
+            every browser until it's paired again.
+          </p>
+          <PairingCode
+            code={snapshot.pairingCode}
+            onReset={() => {
+              if (window.confirm("Make a new pairing code? Every browser will need to be paired again.")) {
+                setError("");
+                api.resetPairingCode().catch((e) => setError(errorText(e)));
+              }
+            }}
+          />
+        </div>
       </Card>
 
       <Card className="flex flex-col gap-2 text-sm">
@@ -104,7 +121,7 @@ export function SettingsPage({ snapshot, onConfig }: { snapshot: Snapshot; onCon
         </div>
       </Card>
 
-      {settingUp && <ExtensionSetup extensions={snapshot.extensions} onClose={() => setSettingUp(false)} />}
+      {settingUp && <ExtensionSetup extensions={snapshot.extensions} pairingCode={snapshot.pairingCode} onClose={() => setSettingUp(false)} />}
     </div>
   );
 }

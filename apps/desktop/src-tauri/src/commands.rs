@@ -191,13 +191,22 @@ pub fn list_browsers() -> Vec<BrowserInfo> {
 
 /// Copies the extension to a stable folder and returns its path.
 #[tauri::command]
-pub fn prepare_extension(app: AppHandle, target: String) -> Result<String, String> {
-    extension_setup::prepare(&app, &target).map(|p| p.display().to_string())
+pub fn prepare_extension(app: AppHandle, state: S, target: String) -> Result<String, String> {
+    extension_setup::prepare(&app, &target, &state.bridge.pairing_code()).map(|p| p.display().to_string())
 }
 
 #[tauri::command]
-pub fn reveal_extension(app: AppHandle, target: String) -> Result<(), String> {
-    extension_setup::reveal(&app, &target)
+pub fn reveal_extension(app: AppHandle, state: S, target: String) -> Result<(), String> {
+    extension_setup::reveal(&app, &target, &state.bridge.pairing_code())
+}
+
+/// New pairing code; every extension has to pair again.
+#[tauri::command]
+pub fn reset_pairing_code(app: AppHandle, state: S) -> Result<String, String> {
+    let code = state.bridge.reset_pairing()?;
+    extension_setup::update_pairing(&app, &code);
+    state.emit(&app);
+    Ok(code)
 }
 
 #[tauri::command]

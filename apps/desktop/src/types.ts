@@ -94,6 +94,8 @@ export interface Snapshot {
   config: Config;
   extensions: ExtensionClient[];
   bridgePort: number | null;
+  /** Typed into the extension's popup to pair it with this app. */
+  pairingCode: string;
   dataDir: string;
   version: string;
 }

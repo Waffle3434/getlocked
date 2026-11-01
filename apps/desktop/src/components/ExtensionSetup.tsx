@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Check, CheckCircle2, Copy, ExternalLink, FolderOpen, Loader2 } from "lucide-react";
+import { Check, CheckCircle2, Copy, ExternalLink, FolderOpen, Loader2, RefreshCw } from "lucide-react";
 import { api, errorText } from "../api";
 import type { BrowserInfo, ExtensionClient } from "../types";
 import { Button, ErrorText, Modal } from "./ui";
@@ -18,8 +18,41 @@ function Step({ n, title, children }: { n: number; title: ReactNode; children?: 
   );
 }
 
+/** `k7qp-x2rm-…`, with copy and (optionally) reset buttons. */
+export function PairingCode({ code, onReset }: { code: string; onReset?: () => void }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <code className="rounded-md border border-ink-700 bg-ink-850 px-2 py-1 text-sm tracking-wide select-text">
+        {code.match(/.{1,4}/g)?.join("-")}
+      </code>
+      <Button className="px-3 py-1 text-xs" onClick={copy}>
+        {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "Copied" : "Copy"}
+      </Button>
+      {onReset && (
+        <Button className="px-3 py-1 text-xs" onClick={onReset}>
+          <RefreshCw size={14} /> New code
+        </Button>
+      )}
+    </div>
+  );
+}
+
 /** Walks the user through loading the extension into one of their browsers. */
-export function ExtensionSetup({ extensions, onClose }: { extensions: ExtensionClient[]; onClose: () => void }) {
+export function ExtensionSetup({
+  extensions,
+  pairingCode,
+  onClose,
+}: {
+  extensions: ExtensionClient[];
+  pairingCode: string;
+  onClose: () => void;
+}) {
   const [browsers, setBrowsers] = useState<BrowserInfo[]>([]);
   const [chosen, setChosen] = useState<BrowserInfo | null>(null);
   const [folder, setFolder] = useState("");
@@ -177,6 +210,12 @@ export function ExtensionSetup({ extensions, onClose }: { extensions: ExtensionC
             </p>
           </ol>
         )}
+
+        <div className="flex flex-col gap-2 text-xs text-ink-400">
+          Loaded from this folder, the extension pairs with GetLocked by itself. If its popup asks for a pairing code,
+          paste this one:
+          <PairingCode code={pairingCode} />
+        </div>
 
         <ErrorText>{error}</ErrorText>
 

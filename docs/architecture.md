@@ -11,6 +11,7 @@ getlocked/
     scheduler.rs               Which schedules fire between two checks
     stats.rs                   SQLite history, summaries, streaks
     protocol.rs                App ⇄ extension messages
+    pairing.rs                 Pairing code and the handshake proofs (mirrored in extension/src/pairing.ts)
     sites.rs, persist.rs       Domain cleanup; atomic JSON files
   apps/desktop/                Tauri 2 desktop app
     src/                       React + TypeScript UI (Vite, Tailwind, Recharts)

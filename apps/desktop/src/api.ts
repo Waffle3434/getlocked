@@ -38,6 +38,7 @@ export const api = {
   listBrowsers: () => invoke<BrowserInfo[]>("list_browsers"),
   prepareExtension: (target: ExtensionTarget) => invoke<string>("prepare_extension", { target }),
   revealExtension: (target: ExtensionTarget) => invoke<void>("reveal_extension", { target }),
+  resetPairingCode: () => invoke<string>("reset_pairing_code"),
   openExtensionsPage: (browser: string) => invoke<void>("open_extensions_page", { browser }),
 };
 

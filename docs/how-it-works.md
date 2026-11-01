@@ -17,6 +17,10 @@ The browser extension uses the browser's built-in [declarativeNetRequest](https:
 
 Only browser extensions can connect to the app's local WebSocket. Connections without a `chrome-extension://` or `moz-extension://` origin are rejected, so web pages can't read or change your session.
 
+That origin check doesn't stop other programs on your PC, which can send any header they like. So the app and the extension also share a **pairing code**, made once per install (Settings → Browser extension). Each connection starts with a handshake: both sides swap random nonces and prove they know the code with an HMAC-SHA256 over the nonces and the port the extension dialled. The code itself is never sent. Until the handshake passes, the app sends no rules and doesn't count the browser as connected, and the extension ignores everything it receives. A program that grabs one of GetLocked's ports first can't pose as the app or relay a real handshake to it. (Anything running as your Windows user can still read the code from GetLocked's data folder; this guards against impostors, not against malware you've already run.)
+
+The extension only reports a block to the app when the report comes from its own blocked page, open as a tab's top-level page, for a site the current rules really block.
+
 ## Strictness and the unlock code
 
 The Rust core decides whether a session can end (`crates/core/src/end_policy.rs`). The unlock code is generated, shown and checked there too, not in the UI. The UI also blocks copy and paste on the code, but the real friction is the 30-second wait plus typing 32 random characters.

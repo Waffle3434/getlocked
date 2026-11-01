@@ -34,7 +34,7 @@ pub fn run() {
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             let (tx, rx) = std::sync::mpsc::channel();
-            let bridge = bridge::Bridge::start(tx);
+            let bridge = bridge::Bridge::start(tx, dir.join("pairing.json"));
             let state = Arc::new(AppState::load(dir, bridge));
             app.manage(state.clone());
 
@@ -110,6 +110,7 @@ pub fn run() {
             commands::list_browsers,
             commands::prepare_extension,
             commands::reveal_extension,
+            commands::reset_pairing_code,
             commands::open_extensions_page,
         ])
         .run(tauri::generate_context!())

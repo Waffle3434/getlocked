@@ -72,6 +72,8 @@ pub struct Snapshot {
     pub config: Config,
     pub extensions: Vec<ClientInfo>,
     pub bridge_port: Option<u16>,
+    /// Typed into the extension's popup to pair it with this app.
+    pub pairing_code: String,
     pub data_dir: String,
     pub version: &'static str,
 }
@@ -206,6 +208,7 @@ impl AppState {
             config: self.config.lock().unwrap().clone(),
             extensions: self.bridge.clients(),
             bridge_port: self.bridge.port(),
+            pairing_code: self.bridge.pairing_code(),
             data_dir: self.paths.dir.display().to_string(),
             version: env!("CARGO_PKG_VERSION"),
         }
