@@ -94,7 +94,7 @@ export function SchedulePage({ config, onConfig }: { config: Config; onConfig: (
                 type="time"
                 value={minuteToTime(editing.startMinute)}
                 onChange={(e) => setEditing({ ...editing, startMinute: timeToMinute(e.target.value) })}
-                className="w-40 rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 outline-none [color-scheme:dark] focus:border-accent-500"
+                className="w-40 rounded-lg border border-ink-700 bg-ink-850 px-3 py-2 outline-none focus:border-accent-500"
               />
             </label>
             <div className="flex flex-col gap-1 text-sm">

@@ -4,6 +4,7 @@ import {
   buildDnrRules,
   cachedRulesExpired,
   clock,
+  fillTaunt,
   hostOf,
   isBlocked,
   isRealBlock,
@@ -17,6 +18,8 @@ const rules = (mode: SiteRulesMsg["mode"], domains: string[], active = true): Si
   domains,
   endsAt: null,
   label: null,
+  openTasks: [],
+  taunt: null,
 });
 
 describe("hostOf", () => {
@@ -67,6 +70,34 @@ describe("parseRules", () => {
     expect(parseRules({ ...ok, endsAt: Infinity })).toBeNull();
     expect(parseRules({ ...ok, active: 1 })).toBeNull();
     expect(parseRules(null)).toBeNull();
+  });
+});
+
+describe("parseRules new fields", () => {
+  it("defaults them when an older app leaves them out", () => {
+    const r = parseRules({ active: true, mode: "block", domains: ["a.com"], endsAt: null, label: null });
+    expect(r?.openTasks).toEqual([]);
+    expect(r?.taunt).toBeNull();
+  });
+
+  it("accepts tasks and a taunt within limits", () => {
+    const ok = { ...rules("block", ["a.com"]), openTasks: ["write intro"], taunt: "Come on Hirsh, {site}? LOCK IN." };
+    expect(parseRules(ok)).toEqual(ok);
+  });
+
+  it("rejects oversized or mistyped tasks and taunts", () => {
+    const base = rules("block", ["a.com"]);
+    expect(parseRules({ ...base, openTasks: Array(21).fill("t") })).toBeNull();
+    expect(parseRules({ ...base, openTasks: ["x".repeat(121)] })).toBeNull();
+    expect(parseRules({ ...base, openTasks: [5] })).toBeNull();
+    expect(parseRules({ ...base, taunt: "x".repeat(301) })).toBeNull();
+    expect(parseRules({ ...base, taunt: 7 })).toBeNull();
+  });
+});
+
+describe("fillTaunt", () => {
+  it("fills every {site} and nothing else", () => {
+    expect(fillTaunt("{site}? {site}! {name}", "x.com")).toBe("x.com? x.com! {name}");
   });
 });
 

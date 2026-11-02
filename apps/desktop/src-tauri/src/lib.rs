@@ -7,6 +7,7 @@ mod commands;
 mod enforcer;
 mod extension_setup;
 pub mod guard;
+mod popup;
 mod runtime;
 
 use std::sync::Arc;
@@ -77,21 +78,36 @@ pub fn run() {
                 show_main(app.handle());
             }
 
+            // The block-message popup is optional: the notification still works without it.
+            if let Err(e) = popup::create(app.handle()) {
+                eprintln!("couldn't create the popup window: {e}");
+            }
+
             runtime::spawn_ticker(app.handle().clone(), state, rx);
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Closing the window just hides it; GetLocked keeps running in
+            // Closing a window just hides it; GetLocked keeps running in
             // the tray so sessions and schedules keep working.
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                let _ = window.hide();
+                if window.label() == popup::LABEL {
+                    popup::hide(window.app_handle());
+                } else {
+                    let _ = window.hide();
+                }
             }
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_snapshot,
             commands::start_session,
             commands::start_preset,
+            commands::add_task,
+            commands::edit_task,
+            commands::tick_task,
+            commands::untick_task,
+            commands::drop_task,
+            commands::check_note,
             commands::begin_unlock,
             commands::unlock_status,
             commands::cancel_unlock,
@@ -112,6 +128,8 @@ pub fn run() {
             commands::reveal_extension,
             commands::reset_pairing_code,
             commands::open_extensions_page,
+            popup::popup_ready,
+            popup::popup_dismiss,
         ])
         .run(tauri::generate_context!())
         .expect("error while running GetLocked");

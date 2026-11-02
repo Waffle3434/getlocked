@@ -1,5 +1,5 @@
 import { describe as group, expect, it } from "vitest";
-import { blankConfig, clock, describe, duration, endButton, minuteToTime, ruleLabel, timeToMinute } from "./format";
+import { blankConfig, clock, describe, duration, endButton, minuteToTime, ruleLabel, timeToMinute, wordCount } from "./format";
 
 group("clock", () => {
   it("formats minutes and hours", () => {
@@ -49,5 +49,14 @@ group("helpers", () => {
   });
   it("labels folder rules by last segment", () => {
     expect(ruleLabel({ type: "folder", path: "C:\\Games\\Steam\\steamapps\\common\\" })).toBe("common (folder)");
+  });
+});
+
+group("wordCount", () => {
+  it("counts words with a letter or digit, like the app does", () => {
+    expect(wordCount("wrote the intro")).toBe(3);
+    expect(wordCount("  done ")).toBe(1);
+    expect(wordCount("- . ! ?")).toBe(0);
+    expect(wordCount("a - b . c")).toBe(3);
   });
 });

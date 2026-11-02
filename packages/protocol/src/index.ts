@@ -18,6 +18,10 @@ export interface SiteRulesMsg {
   /** Unix ms when the current blocking phase ends on its own, if known. */
   endsAt: number | null;
   label: string | null;
+  /** Tasks not yet done, shown on the blocked page. */
+  openTasks: string[];
+  /** A taunt with `{site}` where the blocked domain goes; null when roasting is off. */
+  taunt: string | null;
 }
 
 /**

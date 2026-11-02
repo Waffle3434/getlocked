@@ -47,13 +47,28 @@ export function parseRules(msg: unknown): SiteRulesMsg | null {
     (m.endsAt === null || (typeof m.endsAt === "number" && Number.isFinite(m.endsAt))) &&
     (m.label === null || (typeof m.label === "string" && m.label.length <= 200));
   if (!ok) return null;
+  const openTasks = m.openTasks === undefined ? [] : m.openTasks;
+  const taunt = m.taunt === undefined ? null : m.taunt;
+  const extrasOk =
+    Array.isArray(openTasks) &&
+    openTasks.length <= 20 &&
+    openTasks.every((t) => typeof t === "string" && t.length <= 120) &&
+    (taunt === null || (typeof taunt === "string" && taunt.length <= 300));
+  if (!extrasOk) return null;
   return {
     active: m.active as boolean,
     mode: m.mode as SiteRulesMsg["mode"],
     domains: m.domains as string[],
     endsAt: m.endsAt as number | null,
     label: m.label as string | null,
+    openTasks: openTasks as string[],
+    taunt: taunt as string | null,
   };
+}
+
+/** The taunt with the blocked domain filled in. Rendered as text only. */
+export function fillTaunt(template: string, site: string): string {
+  return template.split("{site}").join(site);
 }
 
 /**

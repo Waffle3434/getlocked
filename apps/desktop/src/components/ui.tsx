@@ -3,10 +3,10 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const variants: Record<Variant, string> = {
-  primary: "bg-accent-600 hover:bg-accent-500 text-white shadow-lg shadow-accent-600/20",
+  primary: "bg-accent-600 hover:bg-accent-500 text-on-accent shadow-lg shadow-accent-600/20",
   secondary: "bg-ink-800 hover:bg-ink-700 text-ink-100 border border-ink-700",
   ghost: "hover:bg-ink-800 text-ink-300 hover:text-ink-100",
-  danger: "bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30",
+  danger: "bg-danger-tint/10 hover:bg-danger-tint/20 text-danger border border-danger-tint/30",
 };
 
 export function Button({
@@ -155,7 +155,7 @@ export function Modal({
   wide?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 p-6 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-backdrop p-6 backdrop-blur-sm">
       <div
         className={`flex max-h-full w-full flex-col overflow-hidden rounded-2xl border border-ink-700 bg-ink-900 shadow-2xl ${wide ? "max-w-3xl" : "max-w-lg"}`}
       >
@@ -175,5 +175,5 @@ export function Modal({
 
 export function ErrorText({ children }: { children: ReactNode }) {
   if (!children) return null;
-  return <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{children}</p>;
+  return <p className="rounded-lg border border-danger-tint/30 bg-danger-tint/10 px-3 py-2 text-sm text-danger">{children}</p>;
 }

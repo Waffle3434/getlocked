@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Coffee, Lock, ShieldCheck } from "lucide-react";
 import { api, errorText } from "../api";
+import { TaskChecklist } from "../components/TaskChecklist";
 import { Button, Chip, ErrorText, Modal } from "../components/ui";
 import { clock, duration, endButton, ruleKey, ruleLabel } from "../format";
 import type { SessionView, Snapshot, UnlockStatus } from "../types";
@@ -193,7 +194,7 @@ export function SessionPage({ session, snapshot }: { session: SessionView; snaps
     <div className="mx-auto flex max-w-3xl flex-col items-center gap-8 py-4">
       <div className="text-center">
         <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-ink-700 bg-ink-900 px-3 py-1 text-xs text-ink-300">
-          {onBreak ? <Coffee size={14} className="text-emerald-400" /> : <Lock size={14} className="text-accent-400" />}
+          {onBreak ? <Coffee size={14} className="text-ok-icon" /> : <Lock size={14} className="text-accent-400" />}
           {onBreak ? "On a break: blocks are lifted" : "Locked in"} · {c.strictness[0].toUpperCase() + c.strictness.slice(1)}
         </div>
         <h1 className="text-2xl">{session.label ?? (c.kind.type === "timed" ? "Focus session" : "Stopwatch session")}</h1>
@@ -208,12 +209,19 @@ export function SessionPage({ session, snapshot }: { session: SessionView; snaps
       </Ring>
 
       <div className="flex flex-col items-center gap-2">
-        <Button variant={end.disabled ? "secondary" : "danger"} onClick={onEnd} disabled={end.disabled}>
+        <Button
+          variant={session.allTasksDone ? "primary" : end.disabled ? "secondary" : "danger"}
+          onClick={onEnd}
+          disabled={end.disabled}
+        >
           {end.disabled && <Lock size={14} />}
-          {end.label}
+          {session.allTasksDone ? "All done, end session" : end.label}
         </Button>
         <ErrorText>{error}</ErrorText>
       </div>
+
+      {/* Always shown, even with no tasks, so tasks can be added mid-session. */}
+      <TaskChecklist tasks={session.tasks} />
 
       <div className="grid w-full gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-ink-800 bg-ink-900 p-4">
@@ -247,7 +255,7 @@ export function SessionPage({ session, snapshot }: { session: SessionView; snaps
             <div className="flex flex-wrap gap-1.5">
               {c.sites.domains.length ? c.sites.domains.map((d) => <Chip key={d}>{d}</Chip>) : <span className="text-xs text-ink-400">None</span>}
             </div>
-            <div className={`mt-3 flex items-center gap-1.5 text-xs ${sitesUnprotected ? "text-amber-300" : "text-emerald-300"}`}>
+            <div className={`mt-3 flex items-center gap-1.5 text-xs ${sitesUnprotected ? "text-warn" : "text-ok"}`}>
               <ShieldCheck size={14} />
               {sitesUnprotected
                 ? "No browser extension connected: sites aren't being blocked."

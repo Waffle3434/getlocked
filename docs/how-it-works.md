@@ -25,6 +25,12 @@ The extension only reports a block to the app when the report comes from its own
 
 The Rust core decides whether a session can end (`crates/core/src/end_policy.rs`). The unlock code is generated, shown and checked there too, not in the UI. The UI also blocks copy and paste on the code, but the real friction is the 30-second wait plus typing 32 random characters.
 
+## Tasks and taunts
+
+Task rules live in the Rust core (`crates/core/src/tasks.rs`), not the UI: notes and drop reasons need 3+ words, editing a ticked task unticks it, and dropped tasks stay in your stats. When every remaining task is ticked, the end check frees the session at any strictness.
+
+When you hit a block, GetLocked can roast you with your own record: how many sessions you've ended early since Monday, from your local stats. Turn it off with **Settings → Roast me when I slip**. The browser extension gets a ready-made line with a `{site}` gap, plus your unticked tasks, so the blocked page can show them. Only the paired extension receives them.
+
 ## Hard mode
 
 - **Survives app kills:** during a Hard session, GetLocked starts a second copy of itself with `--guard`. Each copy watches the other. If you end the app in Task Manager, the guard relaunches it within about a second, and the session resumes.

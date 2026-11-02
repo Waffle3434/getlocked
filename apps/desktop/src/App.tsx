@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BarChart3, CalendarClock, Layers, Lock, Play, Settings as SettingsIcon } from "lucide-react";
 import { api, onQuitBlocked, onState } from "./api";
 import { clock } from "./format";
+import { applyTheme } from "./theme";
 import { PresetsPage } from "./pages/PresetsPage";
 import { SchedulePage } from "./pages/SchedulePage";
 import { SessionPage } from "./pages/SessionPage";
@@ -34,6 +35,13 @@ export default function App() {
     const t = setTimeout(() => setNotice(""), 5000);
     return () => clearTimeout(t);
   }, [notice]);
+
+  // Re-color the window whenever the saved theme changes (Settings → Appearance).
+  const theme = snapshot?.config.settings.theme;
+  useEffect(() => {
+    if (theme) applyTheme(theme);
+    // Only the values matter; a new snapshot with the same theme is a no-op.
+  }, [theme?.mode, theme?.accent, theme?.customAccent]);
 
   if (!snapshot) return null;
 
@@ -101,7 +109,7 @@ export default function App() {
       </main>
 
       {notice && (
-        <div className="fixed right-6 bottom-6 z-50 rounded-xl border border-amber-500/30 bg-ink-850 px-4 py-3 text-sm text-amber-200 shadow-2xl">
+        <div className="fixed right-6 bottom-6 z-50 rounded-xl border border-warn-tint/30 bg-ink-850 px-4 py-3 text-sm text-warn-soft shadow-2xl">
           {notice}
         </div>
       )}

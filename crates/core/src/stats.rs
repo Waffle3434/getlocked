@@ -3,12 +3,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use chrono::{DateTime, Duration, NaiveDate, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, Utc};
 use rusqlite::{params, Connection};
 use serde::Serialize;
 
 use crate::model::{SessionKind, Strictness};
 use crate::session::Ended;
+use crate::tasks::TaskState;
 
 pub use rusqlite::Error as StatsError;
 
@@ -56,6 +57,17 @@ pub struct SessionRow {
     pub overtime_secs: u64,
     pub outcome: String,
     pub blocked_count: u32,
+    pub tasks: Vec<TaskRow>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TaskRow {
+    pub text: String,
+    /// "open", "done" or "dropped".
+    pub state: String,
+    pub note: Option<String>,
+    pub reason: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -126,6 +138,15 @@ impl Stats {
                 kind TEXT NOT NULL,
                 target TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS session_tasks (
+                session_id TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                text TEXT NOT NULL,
+                state TEXT NOT NULL,
+                note TEXT,
+                reason TEXT
+            );
+            CREATE INDEX IF NOT EXISTS session_tasks_session ON session_tasks(session_id);
             CREATE INDEX IF NOT EXISTS sessions_date ON sessions(local_date);
             CREATE INDEX IF NOT EXISTS blocks_date ON blocks(local_date);",
         )?;
@@ -152,7 +173,29 @@ impl Stats {
                 s.blocked_count,
             ],
         )?;
+        self.conn.execute("DELETE FROM session_tasks WHERE session_id = ?1", params![s.id])?;
+        for (i, t) in s.tasks.tasks().iter().enumerate() {
+            let (state, note, reason) = match &t.state {
+                TaskState::Open => ("open", None, None),
+                TaskState::Done { note } => ("done", Some(note.as_str()), None),
+                TaskState::Dropped { reason } => ("dropped", None, Some(reason.as_str())),
+            };
+            self.conn.execute(
+                "INSERT INTO session_tasks (session_id, position, text, state, note, reason) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                params![s.id, i as i64, t.text, state, note, reason],
+            )?;
+        }
         Ok(())
+    }
+
+    /// Sessions ended early on or after `since` (a local date).
+    pub fn ended_early_since(&self, since: NaiveDate) -> Result<u32, StatsError> {
+        let n: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM sessions WHERE outcome = 'endedEarly' AND local_date >= ?1",
+            params![since.to_string()],
+            |r| r.get(0),
+        )?;
+        Ok(n as u32)
     }
 
     pub fn record_block(
@@ -225,7 +268,7 @@ impl Stats {
             "SELECT id, label, kind, strictness, started_at, focus_secs, overtime_secs, outcome, blocked_count
              FROM sessions ORDER BY started_at DESC LIMIT 10",
         )?;
-        let recent = stmt
+        let mut recent: Vec<SessionRow> = stmt
             .query_map([], |r| {
                 Ok(SessionRow {
                     id: r.get(0)?,
@@ -237,9 +280,21 @@ impl Stats {
                     overtime_secs: r.get::<_, i64>(6)? as u64,
                     outcome: r.get(7)?,
                     blocked_count: r.get::<_, i64>(8)? as u32,
+                    tasks: Vec::new(),
                 })
             })?
             .collect::<Result<_, _>>()?;
+
+        let mut stmt = self
+            .conn
+            .prepare("SELECT text, state, note, reason FROM session_tasks WHERE session_id = ?1 ORDER BY position")?;
+        for row in &mut recent {
+            row.tasks = stmt
+                .query_map(params![row.id], |r| {
+                    Ok(TaskRow { text: r.get(0)?, state: r.get(1)?, note: r.get(2)?, reason: r.get(3)? })
+                })?
+                .collect::<Result<_, _>>()?;
+        }
 
         Ok(Summary {
             days: day_stats,
@@ -252,6 +307,11 @@ impl Stats {
             recent,
         })
     }
+}
+
+/// The Monday on or before `d`.
+pub fn week_start(d: NaiveDate) -> NaiveDate {
+    d - Duration::days(i64::from(d.weekday().num_days_from_monday()))
 }
 
 /// (current, best) runs of consecutive days. The current streak is still
@@ -304,6 +364,7 @@ mod tests {
                 phase_ms: 0,
                 overtime: false,
                 blocked_count: 2,
+                tasks: Default::default(),
             },
             outcome,
             ended_with_code: false,
@@ -353,5 +414,48 @@ mod tests {
         assert_eq!(s.total_focus_secs, 0);
         assert_eq!(s.current_streak, 0);
         assert!(s.recent.is_empty());
+    }
+
+    #[test]
+    fn week_starts_on_monday() {
+        // 2026-10-26 is a Monday.
+        assert_eq!(week_start(d(26)), d(26));
+        assert_eq!(week_start(d(28)), d(26));
+        assert_eq!(week_start(NaiveDate::from_ymd_opt(2026, 11, 1).unwrap()), d(26));
+        assert_eq!(
+            week_start(NaiveDate::from_ymd_opt(2026, 11, 2).unwrap()),
+            NaiveDate::from_ymd_opt(2026, 11, 2).unwrap()
+        );
+    }
+
+    #[test]
+    fn counts_early_ends_since_a_date() {
+        let stats = Stats::in_memory().unwrap();
+        stats.record_session(&ended("a", 60, Outcome::EndedEarly), d(25)).unwrap();
+        stats.record_session(&ended("b", 60, Outcome::EndedEarly), d(26)).unwrap();
+        stats.record_session(&ended("c", 60, Outcome::EndedEarly), d(28)).unwrap();
+        stats.record_session(&ended("d", 60, Outcome::Completed), d(28)).unwrap();
+        assert_eq!(stats.ended_early_since(d(26)).unwrap(), 2);
+    }
+
+    #[test]
+    fn records_tasks_with_notes_and_reasons() {
+        let stats = Stats::in_memory().unwrap();
+        let mut e = ended("t", 600, Outcome::Completed);
+        e.session.tasks = crate::tasks::TaskList::new(&["intro".into(), "chart".into(), "refs".into()]).unwrap();
+        e.session.tasks.tick(1, "wrote the intro").unwrap();
+        e.session.tasks.drop_task(2, "chart not needed now").unwrap();
+        stats.record_session(&e, d(28)).unwrap();
+        // Recording the same session again replaces its tasks, not duplicates them.
+        stats.record_session(&e, d(28)).unwrap();
+        let row = &stats.summary(d(28), 1).unwrap().recent[0];
+        assert_eq!(row.tasks.len(), 3);
+        assert_eq!(
+            row.tasks[0],
+            TaskRow { text: "intro".into(), state: "done".into(), note: Some("wrote the intro".into()), reason: None }
+        );
+        assert_eq!(row.tasks[1].state, "dropped");
+        assert_eq!(row.tasks[1].reason.as_deref(), Some("chart not needed now"));
+        assert_eq!(row.tasks[2].state, "open");
     }
 }

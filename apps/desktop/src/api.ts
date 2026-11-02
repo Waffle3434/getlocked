@@ -5,6 +5,7 @@ import type {
   ExtensionTarget,
   Config,
   InstalledApp,
+  NoteCheck,
   Preset,
   RunningApp,
   Schedule,
@@ -18,7 +19,13 @@ import type {
 // Thin typed wrappers around the Rust commands in src-tauri/src/commands.rs.
 export const api = {
   getSnapshot: () => invoke<Snapshot>("get_snapshot"),
-  startSession: (config: SessionConfig) => invoke<void>("start_session", { config }),
+  startSession: (config: SessionConfig, tasks: string[]) => invoke<void>("start_session", { config, tasks }),
+  addTask: (text: string) => invoke<number>("add_task", { text }),
+  editTask: (id: number, text: string) => invoke<void>("edit_task", { id, text }),
+  tickTask: (id: number, note: string) => invoke<void>("tick_task", { id, note }),
+  untickTask: (id: number) => invoke<void>("untick_task", { id }),
+  dropTask: (id: number, reason: string) => invoke<void>("drop_task", { id, reason }),
+  checkNote: (note: string) => invoke<NoteCheck>("check_note", { note }),
   startPreset: (id: string) => invoke<void>("start_preset", { id }),
   beginUnlock: () => invoke<UnlockStatus>("begin_unlock"),
   unlockStatus: () => invoke<UnlockStatus>("unlock_status"),

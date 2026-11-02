@@ -52,6 +52,21 @@ export interface Settings {
   autostart: boolean;
   notifications: boolean;
   extensionGraceSecs: number;
+  /** What taunts call the user. Null: the Windows account name. */
+  displayName: string | null;
+  /** Roast the user when they hit a block. */
+  roast: boolean;
+  theme: Theme;
+}
+
+export type ThemeMode = "dark" | "light";
+export type AccentName = "terracotta" | "ocean" | "forest" | "violet" | "rose" | "custom";
+
+export interface Theme {
+  mode: ThemeMode;
+  accent: AccentName;
+  /** `#rrggbb`, used when `accent` is "custom" (kept otherwise). */
+  customAccent: string | null;
 }
 
 export interface Config {
@@ -81,6 +96,34 @@ export interface SessionView {
   blocking: boolean;
   endPolicy: EndPolicy;
   blockedCount: number;
+  tasks: Task[];
+  /** At least one task is left (not dropped) and every one left is done. */
+  allTasksDone: boolean;
+}
+
+export type TaskState = { type: "open" } | { type: "done"; note: string } | { type: "dropped"; reason: string };
+
+export interface Task {
+  id: number;
+  text: string;
+  state: TaskState;
+}
+
+/** Live check of a tick note or drop reason (`tasks::check_note` in the core). */
+export interface NoteCheck {
+  words: number;
+  /** Different words found in the word list. */
+  realWords: number;
+  /** Whether a tick or drop would accept it. */
+  ok: boolean;
+}
+
+/** A task as stored in the stats. */
+export interface TaskRow {
+  text: string;
+  state: "open" | "done" | "dropped";
+  note: string | null;
+  reason: string | null;
 }
 
 export interface ExtensionClient {
@@ -138,6 +181,7 @@ export interface SessionRow {
   overtimeSecs: number;
   outcome: "completed" | "endedEarly";
   blockedCount: number;
+  tasks: TaskRow[];
 }
 
 export interface StatsSummary {

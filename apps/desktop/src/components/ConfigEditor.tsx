@@ -168,7 +168,7 @@ export function ConfigEditor({ value, onChange }: { value: SessionConfig; onChan
           ))}
         </div>
         {value.strictness === "hard" && (
-          <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          <p className="mt-3 flex items-start gap-2 rounded-lg bg-warn-tint/10 px-3 py-2 text-xs text-warn-soft">
             <Lock size={14} className="mt-0.5 shrink-0" />
             {value.kind.type === "timed"
               ? "Hard mode can't be stopped until the timer runs out."
@@ -246,7 +246,7 @@ export function ConfigEditor({ value, onChange }: { value: SessionConfig; onChan
               />
               <Button type="submit">Add</Button>
             </form>
-            {siteError && <p className="text-xs text-red-300">{siteError}</p>}
+            {siteError && <p className="text-xs text-danger">{siteError}</p>}
             <div className="flex flex-wrap gap-2">
               {value.sites.domains.map((d) => (
                 <Chip

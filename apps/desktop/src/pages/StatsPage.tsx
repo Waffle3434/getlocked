@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { CheckCircle2, CircleStop, Flame, Trophy } from "lucide-react";
+import { CheckCircle2, ChevronDown, CircleStop, Flame, Trophy } from "lucide-react";
 import { api, errorText } from "../api";
 import { Card, ErrorText, Segmented } from "../components/ui";
 import { duration } from "../format";
@@ -27,6 +27,7 @@ export function StatsPage() {
   const [days, setDays] = useState<"7" | "30">("7");
   const [stats, setStats] = useState<StatsSummary | null>(null);
   const [error, setError] = useState("");
+  const [open, setOpen] = useState<string | null>(null);
 
   useEffect(() => {
     api.getStats(Number(days)).then(setStats).catch((e) => setError(errorText(e)));
@@ -57,9 +58,9 @@ export function StatsPage() {
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Tile label={`Focus, last ${days} days`} value={duration(rangeFocus)} />
-        <Tile label="Current streak" value={`${stats.currentStreak} day${stats.currentStreak === 1 ? "" : "s"}`} icon={<Flame size={14} className="text-orange-400" />} />
-        <Tile label="Best streak" value={`${stats.bestStreak} day${stats.bestStreak === 1 ? "" : "s"}`} icon={<Trophy size={14} className="text-amber-300" />} />
-        <Tile label="Completed" value={String(stats.completed)} icon={<CheckCircle2 size={14} className="text-emerald-400" />} />
+        <Tile label="Current streak" value={`${stats.currentStreak} day${stats.currentStreak === 1 ? "" : "s"}`} icon={<Flame size={14} className="text-streak" />} />
+        <Tile label="Best streak" value={`${stats.bestStreak} day${stats.bestStreak === 1 ? "" : "s"}`} icon={<Trophy size={14} className="text-warn" />} />
+        <Tile label="Completed" value={String(stats.completed)} icon={<CheckCircle2 size={14} className="text-ok-icon" />} />
         <Tile label="Ended early" value={String(stats.endedEarly)} icon={<CircleStop size={14} className="text-ink-400" />} />
       </div>
 
@@ -127,22 +128,52 @@ export function StatsPage() {
             <table className="w-full text-sm">
               <tbody>
                 {stats.recent.map((s) => (
-                  <tr key={s.id} className="border-t border-ink-800 first:border-0">
-                    <td className="py-1.5 pr-2">
-                      <div className="truncate">{s.label ?? (s.kind === "timed" ? "Timer" : "Stopwatch")}</div>
-                      <div className="text-xs text-ink-400">
-                        {new Date(s.startedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                      </div>
-                    </td>
-                    <td className="tabular py-1.5 pr-2 text-right">{duration(s.focusSecs)}</td>
-                    <td className="py-1.5 text-right text-xs">
-                      {s.outcome === "completed" ? (
-                        <span className="text-emerald-300">✓ Done</span>
-                      ) : (
-                        <span className="text-ink-400">Ended early</span>
-                      )}
-                    </td>
-                  </tr>
+                  <Fragment key={s.id}>
+                    <tr
+                      onClick={() => {
+                        if (s.tasks.length) setOpen(open === s.id ? null : s.id);
+                      }}
+                      className={`border-t border-ink-800 first:border-0 ${s.tasks.length ? "cursor-pointer hover:bg-ink-850" : ""}`}
+                    >
+                      <td className="py-1.5 pr-2">
+                        <div className="truncate">{s.label ?? (s.kind === "timed" ? "Timer" : "Stopwatch")}</div>
+                        <div className="flex items-center gap-1 text-xs text-ink-400">
+                          {new Date(s.startedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                          {s.tasks.length > 0 && (
+                            <>
+                              {" · "}
+                              {s.tasks.length} task{s.tasks.length === 1 ? "" : "s"}
+                              <ChevronDown size={12} className={`transition-transform ${open === s.id ? "rotate-180" : ""}`} />
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="tabular py-1.5 pr-2 text-right">{duration(s.focusSecs)}</td>
+                      <td className="py-1.5 text-right text-xs">
+                        {s.outcome === "completed" ? (
+                          <span className="text-ok">✓ Done</span>
+                        ) : (
+                          <span className="text-ink-400">Ended early</span>
+                        )}
+                      </td>
+                    </tr>
+                    {open === s.id && (
+                      <tr>
+                        <td colSpan={3} className="pb-2">
+                          <ul className="flex flex-col gap-1 rounded-lg bg-ink-850 p-3 text-xs">
+                            {s.tasks.map((t, i) => (
+                              <li key={i} className="break-words">
+                                <span className={t.state === "dropped" ? "text-ink-400 line-through" : ""}>{t.text}</span>
+                                {t.state === "done" && <span className="text-ok"> ✓ {t.note}</span>}
+                                {t.state === "dropped" && <span className="text-ink-400"> (dropped: {t.reason})</span>}
+                                {t.state === "open" && <span className="text-ink-400"> (not done)</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

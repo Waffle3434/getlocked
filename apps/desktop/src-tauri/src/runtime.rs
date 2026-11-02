@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::Child;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -16,7 +17,8 @@ use getlocked_core::persist::{load_json, remove_file, save_json};
 use getlocked_core::protocol::SiteRulesMsg;
 use getlocked_core::scheduler;
 use getlocked_core::session::{Ended, Engine, EngineEvent, Outcome, Phase, Session, SessionView};
-use getlocked_core::stats::{BlockKind, Stats};
+use getlocked_core::stats::{week_start, BlockKind, Stats};
+use getlocked_core::taunt::{app_label, default_name, taunt, taunt_template};
 use serde::Serialize;
 use tauri::menu::MenuItem;
 use tauri::{AppHandle, Emitter, Manager, Wry};
@@ -26,6 +28,7 @@ use tauri_plugin_notification::NotificationExt as _;
 use crate::bridge::{Bridge, BridgeEvent, ClientInfo};
 use crate::enforcer::{self, CloseReason, Enforcer, ExtensionRequirement};
 use crate::guard;
+use crate::popup;
 
 const TICK: Duration = Duration::from_millis(500);
 const SAVE_EVERY: Duration = Duration::from_secs(5);
@@ -62,6 +65,10 @@ pub struct AppState {
     guard: Mutex<Option<Child>>,
     toasts: Mutex<HashMap<String, Instant>>,
     pub tray_status: Mutex<Option<MenuItem<Wry>>>,
+    /// Sessions ended early since Monday. `None` when stats can't be read.
+    pub bails_this_week: Mutex<Option<u32>>,
+    /// Rotates the taunt lines on app-block toasts.
+    taunt_counter: AtomicU64,
 }
 
 /// Everything the UI needs, pushed as the `state` event twice a second.
@@ -195,7 +202,28 @@ impl AppState {
             guard: Mutex::new(None),
             toasts: Mutex::new(HashMap::new()),
             tray_status: Mutex::new(None),
+            bails_this_week: Mutex::new(None),
+            taunt_counter: AtomicU64::new(0),
         }
+    }
+
+    /// Re-reads how many sessions were ended early since Monday.
+    pub fn refresh_bails(&self) {
+        let since = week_start(Local::now().date_naive());
+        let n = self.stats.lock().unwrap().as_ref().and_then(|s| s.ended_early_since(since).ok());
+        *self.bails_this_week.lock().unwrap() = n;
+    }
+
+    /// The name taunts use: the Settings name, else the Windows account.
+    /// Locks `config`, so don't call it while holding that lock.
+    fn display_name(&self) -> Option<String> {
+        let set = self.config.lock().unwrap().settings.display_name.clone();
+        set.filter(|n| !n.trim().is_empty()).or_else(|| std::env::var("USERNAME").ok().and_then(|a| default_name(&a)))
+    }
+
+    /// Locks `config`, so don't call it while holding that lock.
+    fn roast(&self) -> bool {
+        self.config.lock().unwrap().settings.roast
     }
 
     pub fn now_ms(&self) -> u64 {
@@ -224,27 +252,51 @@ impl AppState {
         Ok(config)
     }
 
-    fn save_session(&self) {
+    /// Locks `engine`, so don't call it while holding that lock.
+    pub fn save_session(&self) {
         if let Some(s) = self.engine.lock().unwrap().session() {
             let _ = save_json(&self.paths.session, s);
         }
     }
 
-    fn toast(&self, app: &AppHandle, key: &str, title: &str, body: &str) {
+    /// Whether a message for `key` may go out now: notifications are on and
+    /// the same key wasn't used in the last `TOAST_COOLDOWN`. Claims the slot.
+    fn may_notify(&self, key: &str) -> bool {
         if !self.config.lock().unwrap().settings.notifications {
-            return;
+            return false;
         }
         let mut toasts = self.toasts.lock().unwrap();
         if toasts.get(key).is_some_and(|t| t.elapsed() < TOAST_COOLDOWN) {
-            return;
+            return false;
         }
         toasts.insert(key.to_string(), Instant::now());
-        let _ = app.notification().builder().title(title).body(body).show();
+        true
     }
 
-    pub fn start_session(&self, app: &AppHandle, config: SessionConfig) -> Result<(), String> {
+    fn notify(app: &AppHandle, title: &str, body: &str) {
+        if let Err(e) = app.notification().builder().title(title).body(body).show() {
+            eprintln!("couldn't show notification \"{title}\": {e}");
+        }
+    }
+
+    fn toast(&self, app: &AppHandle, key: &str, title: &str, body: &str) {
+        if self.may_notify(key) {
+            Self::notify(app, title, body);
+        }
+    }
+
+    /// A block message: the notification plus GetLocked's own popup, which
+    /// shows even when Windows hides the notification (Do not disturb).
+    fn alert(&self, app: &AppHandle, key: &str, title: &str, body: &str) {
+        if self.may_notify(key) {
+            Self::notify(app, title, body);
+            popup::show(app, title, body);
+        }
+    }
+
+    pub fn start_session(&self, app: &AppHandle, config: SessionConfig, tasks: Vec<String>) -> Result<(), String> {
         let hard = config.strictness == Strictness::Hard;
-        self.engine.lock().unwrap().start(config, Utc::now()).map_err(|e| e.to_string())?;
+        self.engine.lock().unwrap().start(config, &tasks, Utc::now()).map_err(|e| e.to_string())?;
         self.save_session();
         self.enforcer.lock().unwrap().reset();
         if hard {
@@ -260,7 +312,7 @@ impl AppState {
         let preset = self.config.lock().unwrap().preset(id).cloned().ok_or("that preset no longer exists")?;
         let mut config = preset.config;
         config.label.get_or_insert(preset.name);
-        self.start_session(app, config)
+        self.start_session(app, config, Vec::new())
     }
 
     /// Record a finished session and lift every block.
@@ -271,6 +323,7 @@ impl AppState {
                 eprintln!("couldn't record session: {e}");
             }
         }
+        self.refresh_bails();
         let _ = remove_file(&self.paths.session);
         self.stop_guard();
         self.enforcer.lock().unwrap().reset();
@@ -307,6 +360,8 @@ impl AppState {
 
     /// Site rules for the extension, given the current session.
     fn site_rules(&self) -> SiteRulesMsg {
+        // Read these before locking the engine; each takes its own lock.
+        let (name, roast, bails) = (self.display_name(), self.roast(), *self.bails_this_week.lock().unwrap());
         let engine = self.engine.lock().unwrap();
         let Some(s) = engine.session().filter(|s| s.blocking() && s.config.sites.mode != ListMode::Off) else {
             return SiteRulesMsg::default();
@@ -316,12 +371,16 @@ impl AppState {
             let t = Utc::now().timestamp_millis() + ms as i64;
             t - t.rem_euclid(10_000) + 10_000
         });
+        // Fixed per session, so the message doesn't change every tick.
+        let variant = s.id.bytes().map(u64::from).sum();
         SiteRulesMsg {
             active: true,
             mode: s.config.sites.mode,
             domains: s.config.sites.domains.clone(),
             ends_at,
             label: s.config.label.clone(),
+            open_tasks: s.tasks.open_texts(),
+            taunt: roast.then(|| taunt_template(name.as_deref(), bails, variant)),
         }
     }
 
@@ -341,12 +400,25 @@ impl AppState {
         for c in closed {
             self.record_block(BlockKind::App, &c.exe_name);
             match c.reason {
-                CloseReason::Rule => self.toast(app, &c.exe_name, &format!("{} is blocked", c.exe_name), &status),
-                CloseReason::NoExtension => self.toast(
+                CloseReason::Rule => {
+                    // The engine lock is released by now; these take the
+                    // config and bails locks one at a time.
+                    let label = app_label(&c.exe_name);
+                    let body = if self.roast() {
+                        let bails = *self.bails_this_week.lock().unwrap();
+                        let v = self.taunt_counter.fetch_add(1, Ordering::Relaxed);
+                        taunt(self.display_name().as_deref(), bails, &label, v)
+                    } else {
+                        status.clone()
+                    };
+                    self.alert(app, &c.exe_name, &format!("{label} is blocked"), &body)
+                }
+                CloseReason::NoExtension => self.alert(
                     app,
                     &c.exe_name,
                     &format!("{} was closed", c.exe_name),
-                    "Install or turn on the GetLocked extension in this browser to use it during a session.",
+                    "Install or turn on the GetLocked extension in this browser to use it during a session. \
+                     Set it up in Settings \u{2192} Browser extension.",
                 ),
             }
         }
@@ -382,6 +454,7 @@ pub fn spawn_ticker(app: AppHandle, state: Arc<AppState>, bridge_events: Receive
         // Look back a little so a start that happened while the app was
         // launching still fires.
         let mut schedule_cursor = Local::now().naive_local() - chrono::Duration::minutes(2);
+        state.refresh_bails();
 
         if state.engine.lock().unwrap().session().is_some_and(|s| s.config.strictness == Strictness::Hard) {
             state.ensure_guard();
@@ -442,6 +515,8 @@ pub fn spawn_ticker(app: AppHandle, state: Arc<AppState>, bridge_events: Receive
 
             if last_schedule_check.elapsed() >= SCHEDULE_EVERY {
                 last_schedule_check = Instant::now();
+                // Picks up Monday's reset.
+                state.refresh_bails();
                 let now_local = Local::now().naive_local();
                 let due: Vec<String> = {
                     let config = state.config.lock().unwrap();

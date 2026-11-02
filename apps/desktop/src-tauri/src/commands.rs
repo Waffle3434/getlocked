@@ -5,9 +5,10 @@ use std::sync::Arc;
 use chrono::{Local, Utc};
 use getlocked_core::end_policy::EndPolicy;
 use getlocked_core::model::{Config, Preset, Schedule, SessionConfig, Settings};
-use getlocked_core::session::UnlockStatus;
+use getlocked_core::session::{Engine, EngineError, UnlockStatus};
 use getlocked_core::sites::normalize_domain as normalize;
 use getlocked_core::stats::Summary;
+use getlocked_core::tasks::{self, NoteCheck};
 use serde::Serialize;
 use tauri::{AppHandle, State};
 use tauri_plugin_autostart::ManagerExt as _;
@@ -24,8 +25,53 @@ pub fn get_snapshot(state: S) -> Snapshot {
 }
 
 #[tauri::command]
-pub fn start_session(app: AppHandle, state: S, config: SessionConfig) -> Result<(), String> {
-    state.start_session(&app, config)
+pub fn start_session(app: AppHandle, state: S, config: SessionConfig, tasks: Vec<String>) -> Result<(), String> {
+    state.start_session(&app, config, tasks)
+}
+
+/// Runs a task change, then saves and pushes the new state.
+fn change_tasks<T>(
+    app: &AppHandle,
+    state: &AppState,
+    f: impl FnOnce(&mut Engine) -> Result<T, EngineError>,
+) -> Result<T, String> {
+    // The engine lock is dropped at the end of this statement, before
+    // `save_session` and `emit` take it again.
+    let out = f(&mut state.engine.lock().unwrap()).map_err(|e| e.to_string())?;
+    state.save_session();
+    state.emit(app);
+    Ok(out)
+}
+
+#[tauri::command]
+pub fn add_task(app: AppHandle, state: S, text: String) -> Result<u32, String> {
+    change_tasks(&app, &state, |e| e.add_task(&text))
+}
+
+#[tauri::command]
+pub fn edit_task(app: AppHandle, state: S, id: u32, text: String) -> Result<(), String> {
+    change_tasks(&app, &state, |e| e.edit_task(id, &text))
+}
+
+#[tauri::command]
+pub fn tick_task(app: AppHandle, state: S, id: u32, note: String) -> Result<(), String> {
+    change_tasks(&app, &state, |e| e.tick_task(id, &note))
+}
+
+#[tauri::command]
+pub fn untick_task(app: AppHandle, state: S, id: u32) -> Result<(), String> {
+    change_tasks(&app, &state, |e| e.untick_task(id))
+}
+
+#[tauri::command]
+pub fn drop_task(app: AppHandle, state: S, id: u32, reason: String) -> Result<(), String> {
+    change_tasks(&app, &state, |e| e.drop_task(id, &reason))
+}
+
+/// Live check for the note dialog: the same rules `tick_task` and `drop_task` apply.
+#[tauri::command]
+pub fn check_note(note: String) -> NoteCheck {
+    tasks::check_note(&note)
 }
 
 #[tauri::command]
@@ -118,12 +164,16 @@ pub fn delete_schedule(state: S, id: String) -> Result<Config, String> {
 
 #[tauri::command]
 pub fn save_settings(app: AppHandle, state: S, settings: Settings) -> Result<Config, String> {
+    settings.theme.validate()?;
     let autolaunch = app.autolaunch();
     let result = if settings.autostart { autolaunch.enable() } else { autolaunch.disable() };
     result.map_err(|e| format!("couldn't change Start with Windows: {e}"))?;
     let mut config = state.config.lock().unwrap().clone();
     config.settings = settings;
-    state.save_config(config)
+    let config = state.save_config(config)?;
+    // The popup window follows the theme through the "state" event.
+    state.emit(&app);
+    Ok(config)
 }
 
 #[derive(Serialize)]

@@ -39,6 +39,13 @@ pub struct SiteRulesMsg {
     /// disappears.
     pub ends_at: Option<i64>,
     pub label: Option<String>,
+    /// Tasks not yet done, for the blocked page.
+    #[serde(default)]
+    pub open_tasks: Vec<String>,
+    /// A taunt with `{site}` where the blocked domain goes. `None` when the
+    /// user turned roasting off.
+    #[serde(default)]
+    pub taunt: Option<String>,
 }
 
 /// Extension → app.
@@ -75,11 +82,16 @@ mod tests {
             domains: vec!["youtube.com".into()],
             ends_at: Some(5),
             label: None,
+            open_tasks: vec![],
+            taunt: None,
         });
         assert_eq!(
             serde_json::to_string(&m).unwrap(),
-            r#"{"type":"rules","active":true,"mode":"block","domains":["youtube.com"],"endsAt":5,"label":null}"#
+            r#"{"type":"rules","active":true,"mode":"block","domains":["youtube.com"],"endsAt":5,"label":null,"openTasks":[],"taunt":null}"#
         );
+        let old: SiteRulesMsg =
+            serde_json::from_str(r#"{"active":true,"mode":"block","domains":[],"endsAt":null,"label":null}"#).unwrap();
+        assert!(old.open_tasks.is_empty() && old.taunt.is_none());
         let hello: FromExtension = serde_json::from_str(
             r#"{"type":"hello","protocol":2,"browser":"edge","version":"0.1.0","incognitoAllowed":false}"#,
         )

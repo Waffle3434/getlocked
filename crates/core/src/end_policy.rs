@@ -17,9 +17,16 @@ pub enum EndPolicy {
 }
 
 /// `goal_reached` is true once a timed session's timer has run out (including
-/// when the user chose to keep going), which always frees the session.
-pub fn end_policy(kind: &SessionKind, strictness: Strictness, focus_secs: u64, goal_reached: bool) -> EndPolicy {
-    if goal_reached {
+/// when the user chose to keep going). `all_tasks_done` is true when every
+/// remaining task is ticked. Either one frees the session.
+pub fn end_policy(
+    kind: &SessionKind,
+    strictness: Strictness,
+    focus_secs: u64,
+    goal_reached: bool,
+    all_tasks_done: bool,
+) -> EndPolicy {
+    if goal_reached || all_tasks_done {
         return EndPolicy::Free;
     }
     match (kind, strictness) {
@@ -47,27 +54,41 @@ mod tests {
 
     #[test]
     fn easy_is_always_free() {
-        assert_eq!(end_policy(&TIMED, Easy, 0, false), Free);
-        assert_eq!(end_policy(&WATCH, Easy, 0, false), Free);
+        assert_eq!(end_policy(&TIMED, Easy, 0, false, false), Free);
+        assert_eq!(end_policy(&WATCH, Easy, 0, false, false), Free);
     }
 
     #[test]
     fn friction_needs_code_until_goal_reached() {
-        assert_eq!(end_policy(&TIMED, Friction, 10, false), NeedsCode);
-        assert_eq!(end_policy(&WATCH, Friction, 10, false), NeedsCode);
-        assert_eq!(end_policy(&TIMED, Friction, 3600, true), Free);
+        assert_eq!(end_policy(&TIMED, Friction, 10, false, false), NeedsCode);
+        assert_eq!(end_policy(&WATCH, Friction, 10, false, false), NeedsCode);
+        assert_eq!(end_policy(&TIMED, Friction, 3600, true, false), Free);
     }
 
     #[test]
     fn hard_timed_is_locked_until_the_timer_ends() {
-        assert_eq!(end_policy(&TIMED, Hard, 100, false), LockedUntil { focus_secs: 3600, then_needs_code: false });
-        assert_eq!(end_policy(&TIMED, Hard, 3600, true), Free);
+        assert_eq!(
+            end_policy(&TIMED, Hard, 100, false, false),
+            LockedUntil { focus_secs: 3600, then_needs_code: false }
+        );
+        assert_eq!(end_policy(&TIMED, Hard, 3600, true, false), Free);
     }
 
     #[test]
     fn hard_stopwatch_needs_minimum_then_code() {
-        assert_eq!(end_policy(&WATCH_MIN, Hard, 599, false), LockedUntil { focus_secs: 600, then_needs_code: true });
-        assert_eq!(end_policy(&WATCH_MIN, Hard, 600, false), NeedsCode);
-        assert_eq!(end_policy(&WATCH, Hard, 0, false), NeedsCode);
+        assert_eq!(
+            end_policy(&WATCH_MIN, Hard, 599, false, false),
+            LockedUntil { focus_secs: 600, then_needs_code: true }
+        );
+        assert_eq!(end_policy(&WATCH_MIN, Hard, 600, false, false), NeedsCode);
+        assert_eq!(end_policy(&WATCH, Hard, 0, false, false), NeedsCode);
+    }
+
+    #[test]
+    fn finishing_every_task_frees_any_session() {
+        for s in [Easy, Friction, Hard] {
+            assert_eq!(end_policy(&TIMED, s, 0, false, true), Free);
+            assert_eq!(end_policy(&WATCH_MIN, s, 0, false, true), Free);
+        }
     }
 }

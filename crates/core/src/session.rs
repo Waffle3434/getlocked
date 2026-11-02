@@ -10,6 +10,7 @@ use thiserror::Error;
 
 use crate::end_policy::{end_policy, EndPolicy};
 use crate::model::{SessionConfig, SessionKind};
+use crate::tasks::{Task, TaskError, TaskList};
 use crate::unlock::{code_matches, UnlockChallenge};
 
 /// Ticks longer than this are clamped. A huge gap means the PC was asleep,
@@ -57,6 +58,9 @@ pub struct Session {
     /// A timed session the user chose to keep going on after time ran out.
     pub overtime: bool,
     pub blocked_count: u32,
+    /// What the user means to get done. Empty for sessions without tasks.
+    #[serde(default)]
+    pub tasks: TaskList,
 }
 
 impl Session {
@@ -78,7 +82,13 @@ impl Session {
     }
 
     pub fn end_policy(&self) -> EndPolicy {
-        end_policy(&self.config.kind, self.config.strictness, self.focus_ms / 1000, self.goal_reached())
+        end_policy(
+            &self.config.kind,
+            self.config.strictness,
+            self.focus_ms / 1000,
+            self.goal_reached(),
+            self.tasks.all_done(),
+        )
     }
 
     /// Milliseconds until the current phase ends on its own, if it will.
@@ -98,6 +108,9 @@ impl Session {
     }
 
     fn outcome(&self) -> Outcome {
+        if self.tasks.all_done() {
+            return Outcome::Completed;
+        }
         match self.config.kind {
             // A stopwatch has no target to fall short of.
             SessionKind::Stopwatch { .. } => Outcome::Completed,
@@ -140,6 +153,8 @@ pub enum EngineError {
     NotTimeUp,
     #[error("invalid session: {0}")]
     Invalid(&'static str),
+    #[error(transparent)]
+    Task(#[from] TaskError),
 }
 
 /// A finished session, ready to be written to stats.
@@ -182,6 +197,8 @@ pub struct SessionView {
     pub blocking: bool,
     pub end_policy: EndPolicy,
     pub blocked_count: u32,
+    pub tasks: Vec<Task>,
+    pub all_tasks_done: bool,
 }
 
 #[derive(Debug, Default)]
@@ -226,11 +243,17 @@ impl Engine {
         self.session.as_ref().is_some_and(Session::blocking)
     }
 
-    pub fn start(&mut self, config: SessionConfig, now: DateTime<Utc>) -> Result<&Session, EngineError> {
+    pub fn start(
+        &mut self,
+        config: SessionConfig,
+        tasks: &[String],
+        now: DateTime<Utc>,
+    ) -> Result<&Session, EngineError> {
         if self.session.is_some() {
             return Err(EngineError::AlreadyRunning);
         }
         validate(&config)?;
+        let tasks = TaskList::new(tasks)?;
         self.challenge = None;
         Ok(self.session.insert(Session {
             id: uuid::Uuid::new_v4().to_string(),
@@ -241,6 +264,7 @@ impl Engine {
             phase_ms: 0,
             overtime: false,
             blocked_count: 0,
+            tasks,
         }))
     }
 
@@ -248,6 +272,30 @@ impl Engine {
         if let Some(s) = &mut self.session {
             s.blocked_count += 1;
         }
+    }
+
+    fn tasks_mut(&mut self) -> Result<&mut TaskList, EngineError> {
+        Ok(&mut self.session.as_mut().ok_or(EngineError::NotRunning)?.tasks)
+    }
+
+    pub fn add_task(&mut self, text: &str) -> Result<u32, EngineError> {
+        Ok(self.tasks_mut()?.add(text)?)
+    }
+
+    pub fn edit_task(&mut self, id: u32, text: &str) -> Result<(), EngineError> {
+        Ok(self.tasks_mut()?.edit(id, text)?)
+    }
+
+    pub fn tick_task(&mut self, id: u32, note: &str) -> Result<(), EngineError> {
+        Ok(self.tasks_mut()?.tick(id, note)?)
+    }
+
+    pub fn untick_task(&mut self, id: u32) -> Result<(), EngineError> {
+        Ok(self.tasks_mut()?.untick(id)?)
+    }
+
+    pub fn drop_task(&mut self, id: u32, reason: &str) -> Result<(), EngineError> {
+        Ok(self.tasks_mut()?.drop_task(id, reason)?)
     }
 
     /// Advance by `delta_ms` of real time.
@@ -376,6 +424,8 @@ impl Engine {
             blocking: s.blocking(),
             end_policy: s.end_policy(),
             blocked_count: s.blocked_count,
+            tasks: s.tasks.tasks().to_vec(),
+            all_tasks_done: s.tasks.all_done(),
         })
     }
 }
@@ -384,6 +434,7 @@ impl Engine {
 mod tests {
     use super::*;
     use crate::model::{PomodoroCfg, Strictness};
+    use crate::tasks::TaskError;
 
     fn cfg(kind: SessionKind, strictness: Strictness) -> SessionConfig {
         SessionConfig {
@@ -410,12 +461,12 @@ mod tests {
     fn cannot_start_twice_or_with_zero_duration() {
         let mut e = Engine::new();
         assert_eq!(
-            e.start(cfg(SessionKind::Timed { duration_secs: 0 }, Strictness::Easy), now()).unwrap_err(),
+            e.start(cfg(SessionKind::Timed { duration_secs: 0 }, Strictness::Easy), &[], now()).unwrap_err(),
             EngineError::Invalid("duration must be more than 0")
         );
-        e.start(cfg(SessionKind::Timed { duration_secs: 5 }, Strictness::Easy), now()).unwrap();
+        e.start(cfg(SessionKind::Timed { duration_secs: 5 }, Strictness::Easy), &[], now()).unwrap();
         assert_eq!(
-            e.start(cfg(SessionKind::Timed { duration_secs: 5 }, Strictness::Easy), now()).unwrap_err(),
+            e.start(cfg(SessionKind::Timed { duration_secs: 5 }, Strictness::Easy), &[], now()).unwrap_err(),
             EngineError::AlreadyRunning
         );
     }
@@ -423,7 +474,7 @@ mod tests {
     #[test]
     fn timed_session_reaches_time_up_and_keeps_blocking() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Timed { duration_secs: 3 }, Strictness::Hard), now()).unwrap();
+        e.start(cfg(SessionKind::Timed { duration_secs: 3 }, Strictness::Hard), &[], now()).unwrap();
         assert_eq!(e.view().unwrap().remaining_secs, Some(3));
         assert_eq!(run(&mut e, 3), vec![EngineEvent::TimeUp]);
         let v = e.view().unwrap();
@@ -438,7 +489,7 @@ mod tests {
     #[test]
     fn time_up_done_completes() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Timed { duration_secs: 2 }, Strictness::Hard), now()).unwrap();
+        e.start(cfg(SessionKind::Timed { duration_secs: 2 }, Strictness::Hard), &[], now()).unwrap();
         run(&mut e, 2);
         let ended = e.time_up_choice(false, now()).unwrap().unwrap();
         assert_eq!(ended.outcome, Outcome::Completed);
@@ -448,7 +499,7 @@ mod tests {
     #[test]
     fn time_up_keep_going_becomes_free_stopwatch_with_overtime() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Timed { duration_secs: 2 }, Strictness::Hard), now()).unwrap();
+        e.start(cfg(SessionKind::Timed { duration_secs: 2 }, Strictness::Hard), &[], now()).unwrap();
         run(&mut e, 2);
         assert!(e.time_up_choice(true, now()).unwrap().is_none());
         run(&mut e, 5);
@@ -466,14 +517,14 @@ mod tests {
     #[test]
     fn time_up_choice_requires_time_up() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Timed { duration_secs: 60 }, Strictness::Easy), now()).unwrap();
+        e.start(cfg(SessionKind::Timed { duration_secs: 60 }, Strictness::Easy), &[], now()).unwrap();
         assert_eq!(e.time_up_choice(true, now()).unwrap_err(), EngineError::NotTimeUp);
     }
 
     #[test]
     fn easy_timed_can_end_early_and_counts_as_ended_early() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Timed { duration_secs: 60 }, Strictness::Easy), now()).unwrap();
+        e.start(cfg(SessionKind::Timed { duration_secs: 60 }, Strictness::Easy), &[], now()).unwrap();
         run(&mut e, 10);
         let ended = e.end(None, 0, now()).unwrap();
         assert_eq!(ended.outcome, Outcome::EndedEarly);
@@ -483,7 +534,7 @@ mod tests {
     #[test]
     fn hard_timed_cannot_end_or_start_unlock() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Timed { duration_secs: 60 }, Strictness::Hard), now()).unwrap();
+        e.start(cfg(SessionKind::Timed { duration_secs: 60 }, Strictness::Hard), &[], now()).unwrap();
         assert_eq!(e.end(None, 0, now()).unwrap_err(), EngineError::Locked);
         assert_eq!(e.begin_unlock(0).unwrap_err(), EngineError::Locked);
     }
@@ -491,7 +542,7 @@ mod tests {
     #[test]
     fn friction_unlock_flow_cooldown_then_code() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Timed { duration_secs: 600 }, Strictness::Friction), now()).unwrap();
+        e.start(cfg(SessionKind::Timed { duration_secs: 600 }, Strictness::Friction), &[], now()).unwrap();
         assert_eq!(e.end(None, 0, now()).unwrap_err(), EngineError::CodeRequired);
 
         let t0 = 10_000;
@@ -515,7 +566,7 @@ mod tests {
     #[test]
     fn begin_unlock_twice_keeps_the_same_cooldown() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Stopwatch { min_secs: None }, Strictness::Friction), now()).unwrap();
+        e.start(cfg(SessionKind::Stopwatch { min_secs: None }, Strictness::Friction), &[], now()).unwrap();
         e.begin_unlock(0).unwrap();
         assert_eq!(e.begin_unlock(20_000).unwrap(), UnlockStatus::CoolingDown { secs_left: 10 });
     }
@@ -523,7 +574,7 @@ mod tests {
     #[test]
     fn hard_stopwatch_locked_until_minimum_then_code_and_completes() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Stopwatch { min_secs: Some(5) }, Strictness::Hard), now()).unwrap();
+        e.start(cfg(SessionKind::Stopwatch { min_secs: Some(5) }, Strictness::Hard), &[], now()).unwrap();
         run(&mut e, 4);
         assert_eq!(e.begin_unlock(0).unwrap_err(), EngineError::Locked);
         run(&mut e, 1);
@@ -537,7 +588,7 @@ mod tests {
     #[test]
     fn stopwatch_counts_up_with_no_remaining() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Stopwatch { min_secs: None }, Strictness::Easy), now()).unwrap();
+        e.start(cfg(SessionKind::Stopwatch { min_secs: None }, Strictness::Easy), &[], now()).unwrap();
         run(&mut e, 42);
         let v = e.view().unwrap();
         assert_eq!(v.focus_secs, 42);
@@ -550,7 +601,7 @@ mod tests {
         let mut c = cfg(SessionKind::Timed { duration_secs: 10 }, Strictness::Hard);
         c.pomodoro = Some(PomodoroCfg { focus_secs: 4, break_secs: 2 });
         let mut e = Engine::new();
-        e.start(c, now()).unwrap();
+        e.start(c, &[], now()).unwrap();
         assert_eq!(run(&mut e, 4), vec![EngineEvent::BreakStarted]);
         assert!(!e.blocking());
         assert_eq!(e.view().unwrap().phase_remaining_secs, Some(2));
@@ -569,7 +620,7 @@ mod tests {
         let mut c = cfg(SessionKind::Stopwatch { min_secs: None }, Strictness::Easy);
         c.pomodoro = Some(PomodoroCfg { focus_secs: 2, break_secs: 1 });
         let mut e = Engine::new();
-        e.start(c, now()).unwrap();
+        e.start(c, &[], now()).unwrap();
         let events = run(&mut e, 9);
         assert_eq!(events.iter().filter(|e| **e == EngineEvent::BreakStarted).count(), 3);
         assert_eq!(e.view().unwrap().focus_secs, 6);
@@ -578,7 +629,7 @@ mod tests {
     #[test]
     fn long_gaps_are_clamped_so_sleep_does_not_count() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Timed { duration_secs: 3600 }, Strictness::Hard), now()).unwrap();
+        e.start(cfg(SessionKind::Timed { duration_secs: 3600 }, Strictness::Hard), &[], now()).unwrap();
         e.tick(8 * 3600 * 1000);
         assert_eq!(e.view().unwrap().focus_secs, MAX_TICK_MS / 1000);
     }
@@ -586,7 +637,7 @@ mod tests {
     #[test]
     fn resumed_session_continues_where_it_left_off() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Timed { duration_secs: 100 }, Strictness::Hard), now()).unwrap();
+        e.start(cfg(SessionKind::Timed { duration_secs: 100 }, Strictness::Hard), &[], now()).unwrap();
         run(&mut e, 40);
         let json = serde_json::to_string(e.session().unwrap()).unwrap();
         let mut resumed = Engine::resume(serde_json::from_str(&json).unwrap());
@@ -598,9 +649,79 @@ mod tests {
     #[test]
     fn record_block_counts() {
         let mut e = Engine::new();
-        e.start(cfg(SessionKind::Stopwatch { min_secs: None }, Strictness::Easy), now()).unwrap();
+        e.start(cfg(SessionKind::Stopwatch { min_secs: None }, Strictness::Easy), &[], now()).unwrap();
         e.record_block();
         e.record_block();
         assert_eq!(e.view().unwrap().blocked_count, 2);
+    }
+
+    fn tasks(t: &[&str]) -> Vec<String> {
+        t.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn finishing_all_tasks_ends_a_hard_timer_as_completed() {
+        let mut e = Engine::new();
+        e.start(cfg(SessionKind::Timed { duration_secs: 3600 }, Strictness::Hard), &tasks(&["intro", "chart"]), now())
+            .unwrap();
+        assert_eq!(e.end(None, 0, now()).unwrap_err(), EngineError::Locked);
+        e.tick_task(1, "wrote the intro").unwrap();
+        assert!(!e.view().unwrap().all_tasks_done);
+        e.tick_task(2, "fixed the chart").unwrap();
+        let v = e.view().unwrap();
+        assert!(v.all_tasks_done);
+        assert_eq!(v.end_policy, EndPolicy::Free);
+        let ended = e.end(None, 0, now()).unwrap();
+        assert_eq!(ended.outcome, Outcome::Completed);
+        assert!(!ended.ended_with_code);
+    }
+
+    #[test]
+    fn dropping_every_task_falls_back_to_strictness() {
+        let mut e = Engine::new();
+        e.start(cfg(SessionKind::Stopwatch { min_secs: None }, Strictness::Friction), &tasks(&["intro"]), now())
+            .unwrap();
+        e.drop_task(1, "not doing this today").unwrap();
+        assert_eq!(e.view().unwrap().end_policy, EndPolicy::NeedsCode);
+    }
+
+    #[test]
+    fn task_errors_surface_and_need_a_session() {
+        let mut e = Engine::new();
+        assert_eq!(e.add_task("x").unwrap_err(), EngineError::NotRunning);
+        e.start(cfg(SessionKind::Stopwatch { min_secs: None }, Strictness::Easy), &[], now()).unwrap();
+        let id = e.add_task("write intro").unwrap();
+        assert_eq!(e.tick_task(id, "done").unwrap_err(), EngineError::Task(TaskError::NoteTooShort));
+        e.edit_task(id, "write the intro").unwrap();
+        e.untick_task(id).unwrap();
+        assert_eq!(e.view().unwrap().tasks.len(), 1);
+    }
+
+    #[test]
+    fn invalid_starting_tasks_refuse_to_start() {
+        let mut e = Engine::new();
+        let err = e.start(cfg(SessionKind::Stopwatch { min_secs: None }, Strictness::Easy), &tasks(&["  "]), now());
+        assert_eq!(err.unwrap_err(), EngineError::Task(TaskError::InvalidText));
+        assert!(!e.is_running());
+    }
+
+    #[test]
+    fn tasks_survive_a_save_and_resume() {
+        let mut e = Engine::new();
+        e.start(cfg(SessionKind::Timed { duration_secs: 60 }, Strictness::Hard), &tasks(&["intro"]), now()).unwrap();
+        e.tick_task(1, "wrote the intro").unwrap();
+        let json = serde_json::to_string(e.session().unwrap()).unwrap();
+        let resumed = Engine::resume(serde_json::from_str(&json).unwrap());
+        assert!(resumed.view().unwrap().all_tasks_done);
+    }
+
+    #[test]
+    fn old_session_files_without_tasks_still_load() {
+        let mut e = Engine::new();
+        e.start(cfg(SessionKind::Timed { duration_secs: 60 }, Strictness::Easy), &[], now()).unwrap();
+        let mut json: serde_json::Value = serde_json::to_value(e.session().unwrap()).unwrap();
+        json.as_object_mut().unwrap().remove("tasks");
+        let s: Session = serde_json::from_value(json).unwrap();
+        assert!(s.tasks.tasks().is_empty());
     }
 }

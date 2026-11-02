@@ -14,4 +14,6 @@ pub mod scheduler;
 pub mod session;
 pub mod sites;
 pub mod stats;
+pub mod tasks;
+pub mod taunt;
 pub mod unlock;

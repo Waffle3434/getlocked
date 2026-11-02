@@ -65,6 +65,14 @@ export function describe(c: SessionConfig): string {
   return parts.join(" · ");
 }
 
+/**
+ * Same rule as the app: whitespace-separated words containing a letter or
+ * digit. `\p{Alphabetic}` + `\p{N}` is exactly Rust's `char::is_alphanumeric`.
+ */
+export function wordCount(s: string): number {
+  return s.split(/\s+/).filter((w) => /[\p{Alphabetic}\p{N}]/u.test(w)).length;
+}
+
 export const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** 570 → "09:30" */

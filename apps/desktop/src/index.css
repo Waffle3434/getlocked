@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-/* Warm charcoal neutrals with ivory text and a terracotta accent. */
+/* Warm charcoal neutrals with ivory text and a terracotta accent: the dark
+   theme. src/theme.ts overrides these variables on <html> for the theme in
+   Settings → Appearance (light mode, other accents), so keep the two in sync. */
 @theme {
   --color-ink-1000: #1f1e1d;
   --color-ink-950: #262624;
@@ -16,6 +18,20 @@
   --color-accent-400: #e08b6c;
   --color-accent-500: #d97757;
   --color-accent-600: #c6613f;
+  /* Text on accent-600 fills. */
+  --color-on-accent: #ffffff;
+  /* Status colors (Tailwind's amber/emerald/red/orange in the dark theme).
+     The *-tint ones are only used translucent, e.g. bg-warn-tint/10. */
+  --color-warn: oklch(87.9% 0.169 91.605);
+  --color-warn-soft: oklch(92.4% 0.12 95.746);
+  --color-warn-tint: oklch(76.9% 0.188 70.08);
+  --color-ok: oklch(84.5% 0.143 164.978);
+  --color-ok-icon: oklch(76.5% 0.177 163.223);
+  --color-danger: oklch(80.8% 0.114 19.571);
+  --color-danger-tint: oklch(63.7% 0.237 25.331);
+  --color-streak: oklch(75% 0.183 55.934);
+  /* Behind modals. */
+  --color-backdrop: rgb(0 0 0 / 0.6);
   --font-sans: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --font-serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
   --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
@@ -31,6 +47,12 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/* Scrollbars and form controls (time pickers, color inputs) follow the
+   theme; applyTheme sets the light value inline. */
+:root {
+  color-scheme: dark;
 }
 
 body {

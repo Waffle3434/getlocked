@@ -221,7 +221,7 @@ export function ExtensionSetup({
 
         <div className="flex items-center justify-between gap-3 border-t border-ink-800 pt-4">
           {connected ? (
-            <span className="flex items-center gap-2 text-sm text-emerald-300">
+            <span className="flex items-center gap-2 text-sm text-ok">
               <CheckCircle2 size={16} /> Connected. Website blocking is ready in {chosen?.name}.
             </span>
           ) : (

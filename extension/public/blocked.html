@@ -18,11 +18,15 @@
   <body>
     <main>
       <img src="icons/128.png" alt="" />
-      <h1><span class="domain" id="domain">This site</span> is blocked</h1>
+      <h1 id="headline"><span class="domain" id="domain">This site</span> is blocked</h1>
       <p class="muted" id="label">You're locked in right now.</p>
       <div class="time tabular" id="time" hidden></div>
       <div class="muted" id="time-caption" hidden>until this session's blocks lift</div>
       <p class="quote" id="quote"></p>
+      <div id="todo" hidden>
+        <p class="muted">Still to do:</p>
+        <ul id="tasks" style="text-align: left; display: inline-block; margin: 0 0 24px"></ul>
+      </div>
       <button class="primary" id="close">Close this tab</button>
     </main>
     <script src="blocked.js"></script>

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "popup",
+  "description": "Permissions for the block-message popup: it only listens for its message. Showing and hiding go through the app's own popup_ready and popup_dismiss commands.",
+  "windows": ["popup"],
+  "permissions": ["core:event:default"]
+}

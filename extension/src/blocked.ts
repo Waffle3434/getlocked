@@ -1,7 +1,7 @@
 // The page shown instead of a blocked site.
 
 import type { SiteRulesMsg } from "@getlocked/protocol";
-import { clock } from "./rules";
+import { clock, fillTaunt } from "./rules";
 
 const QUOTES = [
   "The work you're avoiding is the work that matters.",
@@ -26,6 +26,16 @@ $("close").addEventListener("click", () => window.close());
 async function render() {
   const { rules } = (await chrome.storage.local.get("rules")) as { rules?: SiteRulesMsg };
   if (rules?.label) $("label").textContent = `You're locked in: ${rules.label}.`;
+  if (rules?.taunt && domain) $("headline").textContent = fillTaunt(rules.taunt, domain);
+  const open = rules?.openTasks ?? [];
+  $("todo").hidden = open.length === 0;
+  $("tasks").replaceChildren(
+    ...open.map((t) => {
+      const li = document.createElement("li");
+      li.textContent = t;
+      return li;
+    }),
+  );
   const show = !!rules?.endsAt;
   $("time").hidden = !show;
   $("time-caption").hidden = !show;

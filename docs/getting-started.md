@@ -28,6 +28,9 @@ On the **Start** page:
    | **Hard** | Can't end until the timer runs out | Unlock code, and only after the minimum time if you set one |
 
    The **unlock code** appears after a 30-second wait. It's a long random code you have to type by hand: copy and paste are blocked, and a wrong guess gets you a new code. The idea is to give you a moment to reconsider.
+
+   **Tasks (optional).** Under "What are you getting done?", list what you mean to finish. During the session you can add, edit and tick tasks. Ticking needs a short note (3+ words) on what you did, and deleting a task needs a reason. Tick every remaining task and **All done, end session** appears, which ends the session at any strictness, Hard included, and counts it as completed.
+
 3. **Apps:** *Block these* closes the listed apps whenever they open. *Allow only these* closes any other app that opens a window. Explorer, the Start menu, Task Manager and GetLocked itself always stay usable.
    - Add apps from **Running now**, **Installed** (your Start Menu), or **Browse** for any `.exe`.
    - **Folder rules** block everything that runs from a folder. Point one at `…\Steam\steamapps\common` to cover every Steam game at once.
@@ -36,6 +39,8 @@ On the **Start** page:
 
 Press **Lock in**.
 
+If you hit a block during a session, GetLocked roasts you with how many sessions you've ended early this week; turn that off with **Settings → Roast me when I slip**, and set the name it calls you right below it.
+
 ## Presets and schedules
 
 - **Save as preset** on the Start page, or manage presets on the **Presets** page.
@@ -43,4 +48,4 @@ Press **Lock in**.
 
 ## Stats
 
-The **Stats** page shows focus time per day, your current and best streaks (consecutive days with at least one completed session), what got blocked most, and recent sessions. Everything is stored locally in `%APPDATA%\dev.getlocked.app\stats.sqlite`.
+The **Stats** page shows focus time per day, your current and best streaks (consecutive days with at least one completed session), what got blocked most, and recent sessions. Click a recent session that had tasks to see them, with your notes and drop reasons. Everything is stored locally in `%APPDATA%\dev.getlocked.app\stats.sqlite`.

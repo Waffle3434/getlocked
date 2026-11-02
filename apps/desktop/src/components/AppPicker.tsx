@@ -150,7 +150,7 @@ export function AppPicker({
                     className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left ${on ? "bg-accent-600/20" : "hover:bg-ink-800"}`}
                   >
                     <span
-                      className={`grid h-5 w-5 shrink-0 place-items-center rounded border text-xs ${on ? "border-accent-400 bg-accent-600 text-white" : "border-ink-600"}`}
+                      className={`grid h-5 w-5 shrink-0 place-items-center rounded border text-xs ${on ? "border-accent-400 bg-accent-600 text-on-accent" : "border-ink-600"}`}
                     >
                       {on && "✓"}
                     </span>

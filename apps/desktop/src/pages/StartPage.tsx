@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Play, Save } from "lucide-react";
 import { api, errorText } from "../api";
 import { ConfigEditor } from "../components/ConfigEditor";
+import { TaskInput } from "../components/TaskInput";
 import { Button, ErrorText, Modal } from "../components/ui";
 import { blankConfig, describe, newId } from "../format";
 import type { Config, SessionConfig, Snapshot } from "../types";
@@ -9,6 +10,7 @@ import type { Config, SessionConfig, Snapshot } from "../types";
 export function StartPage({ snapshot, onConfig }: { snapshot: Snapshot; onConfig: (c: Config) => void }) {
   const presets = snapshot.config.presets;
   const [config, setConfig] = useState<SessionConfig>(() => presets[0]?.config ?? blankConfig());
+  const [tasks, setTasks] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [presetName, setPresetName] = useState("");
@@ -22,7 +24,7 @@ export function StartPage({ snapshot, onConfig }: { snapshot: Snapshot; onConfig
       return;
     }
     try {
-      await api.startSession(config);
+      await api.startSession(config, tasks);
     } catch (e) {
       setError(errorText(e));
     }
@@ -65,10 +67,12 @@ export function StartPage({ snapshot, onConfig }: { snapshot: Snapshot; onConfig
         </div>
       )}
 
+      <TaskInput tasks={tasks} onChange={setTasks} />
+
       <ConfigEditor value={config} onChange={setConfig} />
 
       {sitesNeedExtension && (
-        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+        <p className="rounded-lg border border-warn-tint/30 bg-warn-tint/10 px-3 py-2 text-sm text-warn-soft">
           No browser extension is connected yet, so websites won't be blocked. Set it up in Settings → Browser extension.
         </p>
       )}
