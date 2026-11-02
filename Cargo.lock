@@ -1352,7 +1352,7 @@ dependencies = [
 
 [[package]]
 name = "getlocked-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "hex",
@@ -1369,7 +1369,7 @@ dependencies = [
 
 [[package]]
 name = "getlocked-desktop"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "futures-util",
